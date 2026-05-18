@@ -1065,10 +1065,12 @@ def confirm_booking():
 
 
 # ── Payment ────────────────────────────────────────────────────────────────────
+# ── Payment ────────────────────────────────────────────────────────────────────
 @user_bp.route("/payment/<booking_id>", methods=["GET", "POST"])
 @login_required
 def payment(booking_id):
     booking = Booking.query.get_or_404(booking_id)
+
     if booking.user_id != current_user.user_id:
         flash("Access denied.", "danger")
         return redirect(url_for("user.dashboard"))
@@ -1076,40 +1078,96 @@ def payment(booking_id):
     show  = booking.show
     state = _booking_state(booking)
 
-    # Auto-mark EXPIRED bookings and release seat locks
+    # ── Auto expire booking if show already started ──────────────────────────
     if state["status"] == "EXPIRED" and booking.payment_status == "Pending":
+
         booking.payment_status = "EXPIRED"
-        # Release seat locks
+
         booked_seats = list(booking.seats)
+
         for seat in booked_seats:
             seat.status = "Available"
             seat.booking_id = None
+
         if show:
-            show.available_seats = (show.available_seats or 0) + len(booked_seats)
+            show.available_seats = (
+                show.available_seats or 0
+            ) + len(booked_seats)
+
         db.session.commit()
-        flash("This booking has expired — the show has already started.", "warning")
+
+        flash(
+            "This booking has expired — the show has already started.",
+            "warning"
+        )
+
         return redirect(url_for("user.my_bookings"))
 
+    # ── Prevent payment if booking invalid ───────────────────────────────────
     if not state["can_pay"] and request.method == "GET":
-        flash(state["cancel_blocked_reason"] or "Payment is not available for this booking.", "warning")
+
+        flash(
+            state["cancel_blocked_reason"]
+            or "Payment is not available for this booking.",
+            "warning"
+        )
+
         return redirect(url_for("user.my_bookings"))
 
+    # ── Price Calculation ────────────────────────────────────────────────────
     seats = list(booking.seats)
-    base  = float(show.price_per_ticket or 0) * booking.total_tickets
-    extra = sum(float(s.charges or 0) for s in seats)
-    total = base + extra
 
+    # Base ticket amount
+    base_total = (
+        float(show.price_per_ticket or 0)
+        * booking.total_tickets
+    )
+
+    # Seat extra charges
+    surcharge = sum(
+        float(s.charges or 0)
+        for s in seats
+    )
+
+    # Subtotal
+    subtotal = base_total + surcharge
+
+    # Convenience fee
+    convenience_fee = 30
+
+    # GST 18%
+    gst = round(
+        (subtotal + convenience_fee) * 0.18,
+        2
+    )
+
+    # Final total
+    total_amount = round(
+        subtotal + convenience_fee + gst,
+        2
+    )
+
+    # ── Payment Submit ───────────────────────────────────────────────────────
     if request.method == "POST":
-        # Re-validate at POST time too
+
+        # Re-check payment validity
         state_post = _booking_state(booking)
+
         if not state_post["can_pay"]:
-            flash("Payment is no longer available — show may have started.", "danger")
+
+            flash(
+                "Payment is no longer available — show may have started.",
+                "danger"
+            )
+
             return redirect(url_for("user.my_bookings"))
 
         method     = request.form.get("payment_method", "UPI")
         rzp_pid    = request.form.get("razorpay_payment_id", "")
         session_id = request.form.get("lock_session_id", "").strip()
+
         payment_id = _next_payment_id()
+
         pay = Payment(
             payment_id         = payment_id,
             booking_id         = booking_id,
@@ -1118,75 +1176,135 @@ def payment(booking_id):
             payment_date       = datetime.utcnow(),
             transaction_status = "Success",
         )
+
         db.session.add(pay)
+
         booking.payment_status = "Completed"
 
-        # Store financial fields for refund calculation
-        CONVENIENCE_FEE = 30
-        if booking.convenience_fee is None:
-            booking.convenience_fee = CONVENIENCE_FEE
-        if booking.total_amount is None:
-            booking.total_amount = total  # total already computed above
+        # Save financial data
+        booking.convenience_fee = convenience_fee
+        booking.total_amount    = total_amount
 
-        # Release any remaining seat locks for this session
+        # Release seat locks
         if session_id and show:
+
             SeatLock.query.filter(
-                SeatLock.show_id    == show.show_id,
+                SeatLock.show_id == show.show_id,
                 SeatLock.session_id == session_id,
             ).delete(synchronize_session=False)
 
         db.session.commit()
 
-        # Non-fatal email
+        # ── Send Confirmation Email ──────────────────────────────────────────
         try:
+
             from flask_mail import Message as MailMessage
             from app import mail as _mail
-            _mail.send(MailMessage(
-                subject    = f"Booking Confirmed — {show.movie.title}",
-                recipients = [current_user.email],
-                body       = (
-                    f"Hi {current_user.name},\n\n"
-                    f"Your booking {booking_id} is confirmed!\n"
-                    f"Movie:   {show.movie.title}\n"
-                    f"Date:    {show.show_date}\n"
-                    f"Time:    {show.start_time}\n"
-                    f"Theater: {show.theater.name}, {show.theater.city}\n"
-                    f"Seats:   {booking.seat_labels or ', '.join(s.seat_number for s in seats)}\n"
-                    f"Paid:    ₹{total:.2f}\n"
-                ),
-            ))
+
+            _mail.send(
+                MailMessage(
+                    subject=f"Booking Confirmed — {show.movie.title}",
+                    recipients=[current_user.email],
+
+                    body=(
+                        f"Hi {current_user.name},\n\n"
+
+                        f"Your booking {booking_id} is confirmed!\n"
+
+                        f"Movie:   {show.movie.title}\n"
+                        f"Date:    {show.show_date}\n"
+                        f"Time:    {show.start_time}\n"
+                        f"Theater: {show.theater.name}, {show.theater.city}\n"
+
+                        f"Seats:   "
+                        f"{booking.seat_labels or ', '.join(s.seat_number for s in seats)}\n\n"
+
+                        f"Base Total: ₹{base_total:.2f}\n"
+                        f"Surcharge: ₹{surcharge:.2f}\n"
+                        f"Convenience Fee: ₹{convenience_fee:.2f}\n"
+                        f"GST: ₹{gst:.2f}\n"
+
+                        f"Total Paid: ₹{total_amount:.2f}\n"
+                    ),
+                )
+            )
+
         except Exception:
             pass
 
-        # ── Redirect to confirmation page with success flag ────────────────
-        return redirect(url_for("user.booking_confirmation", booking_id=booking_id))
+        # ── Redirect to confirmation page ───────────────────────────────────
+        return redirect(
+            url_for(
+                "user.booking_confirmation",
+                booking_id=booking_id
+            )
+        )
 
-    return render_template("user/payment.html",
-                           booking=booking, show=show, seats=seats, total=total)
+    # ── Render Payment Page ──────────────────────────────────────────────────
+    return render_template(
+        "user/payment.html",
+        booking=booking,
+        show=show,
+        seats=seats,
 
+        base_total=base_total,
+        surcharge=surcharge,
+        subtotal=subtotal,
+        convenience_fee=convenience_fee,
+        gst=gst,
 
+        total=total_amount
+    )
 # ── Booking Confirmation ───────────────────────────────────────────────────────
 @user_bp.route("/booking/confirmation/<booking_id>")
 @login_required
 def booking_confirmation(booking_id):
     booking = Booking.query.get_or_404(booking_id)
+
     if booking.user_id != current_user.user_id:
         return redirect(url_for("user.dashboard"))
+
     seats = list(booking.seats)
     show  = booking.show
-    base  = float(show.price_per_ticket or 0) * booking.total_tickets
-    # Use charges from seats if available; otherwise per-seat surcharge from labels
+
+    # Ticket price
+    base = float(show.price_per_ticket or 0) * booking.total_tickets
+
+    # Extra charges
     extra = sum(float(s.charges or 0) for s in seats)
-    total = base + extra
-    # Build human-readable seat labels for display (prefer seat_labels field)
+
+    # Subtotal
+    subtotal = base + extra
+
+    # Convenience fee
+    convenience_fee = 30
+
+    # GST
+    gst = round((subtotal + convenience_fee) * 0.18, 2)
+
+    # Final amount
+    total = round(subtotal + convenience_fee + gst, 2)
+
+    # Seat labels
     seat_label_list = []
+
     if booking.seat_labels:
-        seat_label_list = [lb.strip() for lb in booking.seat_labels.split(",") if lb.strip()]
+        seat_label_list = [
+            lb.strip()
+            for lb in booking.seat_labels.split(",")
+            if lb.strip()
+        ]
+
     elif seats:
         seat_label_list = [s.seat_number for s in seats]
-    return render_template("user/booking_confirmation.html",
-                           booking=booking, seats=seats, total=total,
-                           seat_label_list=seat_label_list)
+
+    return render_template(
+        "user/booking_confirmation.html",
+        booking=booking,
+        seats=seats,
+        total=total,
+        seat_label_list=seat_label_list
+    )
 
 
 # ── User Dashboard ─────────────────────────────────────────────────────────────

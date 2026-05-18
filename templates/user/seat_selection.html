@@ -295,6 +295,9 @@
           <div class="sum-row"><span>Seats selected</span><span id="cnt">0</span></div>
           <div class="sum-row"><span>Base / seat</span><span>₹{{ show.price_per_ticket }}</span></div>
           <div class="sum-row"><span>Tier surcharge</span><span id="sur">₹0</span></div>
+          <div class="sum-row"><span>Convenience Fee</span><span id="conv">₹0</span></div>
+          <div class="sum-row"><span>GST (18%)</span><span id="gst">₹0</span></div>
+
           <hr class="sum-divider">
           <div class="sum-row total"><span>Total</span><span id="ttl">₹0.00</span></div>
 
@@ -582,42 +585,106 @@
 
   /* ── Refresh summary panel ──────────────────────────────────────────────── */
   function refresh(){
-    var keys  = Object.keys(selected);
-    var n     = keys.length;
-    var surT  = keys.reduce(function(s, k){ return s + selected[k].sur; }, 0);
-    var total = BASE * n + surT;
 
-    var tags = document.getElementById('seat-tags');
-    tags.innerHTML = '';
-    if(n === 0){
-      var em = document.createElement('span');
-      em.id = 'empty-msg';
-      em.style.cssText = 'font-size:.8rem;color:rgba(255,255,255,.22);font-style:italic;font-family:Inter,sans-serif;';
-      em.textContent = 'None selected yet';
-      tags.appendChild(em);
-      stopLockTimer();
-    } else {
-      keys.forEach(function(lb){
-        var tag = document.createElement('span'); tag.className = 'seat-tag';
-        tag.innerHTML = lb + '<span class="rm" onclick="rmS(\'' + lb + '\')">×</span>';
-        tags.appendChild(tag);
-      });
-    }
-    // Show/hide the "seats locked" notice
-    var notice = document.getElementById('seat-locked-notice');
-    if(notice) notice.style.display = n > 0 ? 'block' : 'none';
+  var keys  = Object.keys(selected);
+  var n     = keys.length;
 
-    document.getElementById('cnt').textContent  = n;
-    document.getElementById('sur').textContent  = '₹' + surT;
-    document.getElementById('ttl').textContent  = '₹' + total.toFixed(2);
-    document.getElementById('ttl-m').textContent = '₹' + total.toFixed(2);
-    document.getElementById('cnt-m').textContent = n + ' seat' + (n !== 1 ? 's' : '') + ' selected';
-    document.getElementById('proc-btn').disabled = (n === 0);
-    document.getElementById('proc-btn').textContent = n === 0 ? 'Select Seats to Continue' : 'Proceed to Payment →';
-    var mb = document.getElementById('proc-m'); if(mb) mb.disabled = (n === 0);
-    document.getElementById('seat-nums').value = keys.join(', ');
-    document.getElementById('num-tix').value   = n;
+  var surT  = keys.reduce(function(s, k){
+    return s + selected[k].sur;
+  }, 0);
+
+  // Base subtotal
+  var subtotal = (BASE * n) + surT;
+
+  // Convenience fee
+  var convenienceFee = n > 0 ? 30 : 0;
+
+  // GST 18%
+  var gst = ((subtotal + convenienceFee) * 0.18);
+
+  // Final total
+  var total = subtotal + convenienceFee + gst;
+
+  var tags = document.getElementById('seat-tags');
+
+  tags.innerHTML = '';
+
+  if(n === 0){
+
+    var em = document.createElement('span');
+
+    em.id = 'empty-msg';
+
+    em.style.cssText =
+      'font-size:.8rem;color:rgba(255,255,255,.22);font-style:italic;font-family:Inter,sans-serif;';
+
+    em.textContent = 'None selected yet';
+
+    tags.appendChild(em);
+
+    stopLockTimer();
+
+  } else {
+
+    keys.forEach(function(lb){
+
+      var tag = document.createElement('span');
+
+      tag.className = 'seat-tag';
+
+      tag.innerHTML =
+        lb + '<span class="rm" onclick="rmS(\'' + lb + '\')">×</span>';
+
+      tags.appendChild(tag);
+
+    });
   }
+
+  // Lock notice
+  var notice = document.getElementById('seat-locked-notice');
+
+  if(notice)
+    notice.style.display = n > 0 ? 'block' : 'none';
+
+  // Summary update
+  document.getElementById('cnt').textContent = n;
+
+  document.getElementById('sur').textContent =
+    '₹' + surT.toFixed(2);
+
+  document.getElementById('conv').textContent =
+    '₹' + convenienceFee.toFixed(2);
+
+  document.getElementById('gst').textContent =
+    '₹' + gst.toFixed(2);
+
+  document.getElementById('ttl').textContent =
+    '₹' + total.toFixed(2);
+
+  document.getElementById('ttl-m').textContent =
+    '₹' + total.toFixed(2);
+
+  document.getElementById('cnt-m').textContent =
+    n + ' seat' + (n !== 1 ? 's' : '') + ' selected';
+
+  document.getElementById('proc-btn').disabled =
+    (n === 0);
+
+  document.getElementById('proc-btn').textContent =
+    n === 0
+      ? 'Select Seats to Continue'
+      : 'Proceed to Payment →';
+
+  var mb = document.getElementById('proc-m');
+
+  if(mb)
+    mb.disabled = (n === 0);
+
+  document.getElementById('seat-nums').value =
+    keys.join(', ');
+
+  document.getElementById('num-tix').value = n;
+}
 
   window.rmS = function(lb){
     if (selected[lb]) {
