@@ -1,0 +1,152 @@
+{% extends "theater/base_owner.html" %}
+{% block title %}{{ 'Edit' if screen else 'Add' }} Screen — Theater Owner{% endblock %}
+{% block page_title %}{{ 'Edit' if screen else 'Add' }} Screen{% endblock %}
+{% block head %}
+<style>
+/* Light theme overrides for screen form */
+.bms-card { background: #fff !important; border: 1px solid #E2E8F0 !important; color: #1E293B !important; }
+.form-control, .form-select {
+  background: #fff !important; color: #1E293B !important;
+  border-color: #CBD5E1 !important;
+}
+.form-control:focus, .form-select:focus {
+  background: #fff !important; color: #1E293B !important;
+  border-color: #93C5FD !important; box-shadow: 0 0 0 3px rgba(59,130,246,.12) !important;
+}
+.form-label { color: #374151 !important; }
+.form-text { color: #6B7280 !important; }
+#seatPreview { background: #F9FAFB !important; border-color: #D1D5DB !important; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+
+    <div class="d-flex align-items-center gap-2 mb-4">
+      <a href="{{ url_for('owner.screens') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+      </a>
+      <h5 class="fw-bold mb-0" style="font-family:'Poppins',sans-serif;">
+        {{ 'Edit' if screen else 'Add New' }} Screen
+      </h5>
+    </div>
+
+    <div class="bms-card p-4">
+      <form method="POST" novalidate>
+
+        <!-- Theater -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Theater <span class="text-danger">*</span></label>
+          <select name="theater_id" class="form-select" required>
+            {% for t in theaters %}
+            <option value="{{ t.theater_id }}"
+              {{ 'selected' if screen and screen.theater_id == t.theater_id }}>
+              {{ t.name }}, {{ t.city }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Screen Number -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Screen Number <span class="text-danger">*</span></label>
+          <input type="number" name="screen_number" class="form-control"
+                 value="{{ screen.screen_number if screen else '' }}"
+                 placeholder="e.g. 1" min="1" required>
+        </div>
+
+        <!-- Seat Configuration -->
+        <div class="mb-1">
+          <label class="form-label fw-semibold">Seat Configuration</label>
+        </div>
+
+        <!-- Gold Seats -->
+        <div class="mb-3 p-3 rounded-3" style="background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.3);">
+          <label class="form-label fw-semibold small mb-1">
+            <span style="color:#B45309;">🥇 Gold Seats</span>
+            <span class="badge ms-2" style="background:rgba(245,166,35,.15);color:#B45309;font-size:.68rem;font-weight:700;border:1px solid rgba(245,166,35,.35);">+₹100 surcharge</span>
+          </label>
+          <input type="number" name="gold_seats" class="form-control" id="goldInput"
+                 value="{{ screen.gold_seats if screen else 0 }}"
+                 min="0" placeholder="e.g. 20" oninput="updatePreview()">
+          <div class="form-text">Premium seats at the front/centre. Leave 0 if not needed.</div>
+        </div>
+
+        <!-- Silver Seats -->
+        <div class="mb-3 p-3 rounded-3" style="background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.3);">
+          <label class="form-label fw-semibold small mb-1">
+            <span style="color:#475569;">🥈 Silver Seats</span>
+            <span class="badge ms-2" style="background:rgba(148,163,184,.15);color:#475569;font-size:.68rem;font-weight:700;border:1px solid rgba(148,163,184,.35);">+₹50 surcharge</span>
+          </label>
+          <input type="number" name="silver_seats" class="form-control" id="silverInput"
+                 value="{{ screen.silver_seats if screen else 0 }}"
+                 min="0" placeholder="e.g. 40" oninput="updatePreview()">
+          <div class="form-text">Mid-tier seats. Leave 0 if not needed.</div>
+        </div>
+
+        <!-- General Seats -->
+        <div class="mb-4 p-3 rounded-3" style="background:rgba(109,40,217,.07);border:1px solid rgba(109,40,217,.25);">
+          <label class="form-label fw-semibold small mb-1">
+            <span style="color:#6d28d9;">🎟 General Seats</span>
+            <span class="badge ms-2" style="background:rgba(109,40,217,.1);color:#6d28d9;font-size:.68rem;font-weight:700;border:1px solid rgba(109,40,217,.25);">No surcharge</span>
+          </label>
+          <input type="number" name="general_seats" class="form-control form-control" id="generalInput"
+                 value="{{ screen.general_seats if screen else 60 }}"
+                 min="0" placeholder="e.g. 60" required oninput="updatePreview()">
+          <div class="form-text">Standard seats. At least 10 total seats required across all tiers.</div>
+        </div>
+
+        <!-- Live Preview -->
+        <div class="d-flex align-items-center gap-3 p-3 rounded-3 mb-4" id="seatPreview"
+             style="background:#F9FAFB;border:1px dashed #D1D5DB;">
+          <span style="font-size:1.6rem;">🎬</span>
+          <div class="flex-grow-1">
+            <div class="fw-semibold" style="font-size:.88rem;">Seat Summary</div>
+            <div class="d-flex flex-wrap gap-2 mt-1" id="previewPills">
+              <!-- filled by JS -->
+            </div>
+            <div class="text-muted mt-1" style="font-size:.76rem;" id="previewTotal">Total: 0 seats</div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-bms px-4">
+            <i class="bi bi-check-lg me-1"></i>{{ 'Update' if screen else 'Add' }} Screen
+          </button>
+          <a href="{{ url_for('owner.screens') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function updatePreview() {
+  const gold    = parseInt(document.getElementById('goldInput').value)    || 0;
+  const silver  = parseInt(document.getElementById('silverInput').value)  || 0;
+  const general = parseInt(document.getElementById('generalInput').value) || 0;
+  const total   = gold + silver + general;
+
+  const pills = document.getElementById('previewPills');
+  pills.innerHTML = '';
+
+  if (gold > 0) {
+    pills.innerHTML += `<span style="background:rgba(245,166,35,.15);color:#B45309;border:1px solid rgba(245,166,35,.35);border-radius:5px;padding:3px 10px;font-size:.75rem;font-weight:700;">🥇 ${gold} Gold (+₹100)</span>`;
+  }
+  if (silver > 0) {
+    pills.innerHTML += `<span style="background:rgba(148,163,184,.15);color:#475569;border:1px solid rgba(148,163,184,.35);border-radius:5px;padding:3px 10px;font-size:.75rem;font-weight:700;">🥈 ${silver} Silver (+₹50)</span>`;
+  }
+  if (general > 0) {
+    pills.innerHTML += `<span style="background:rgba(109,40,217,.1);color:#6d28d9;border:1px solid rgba(109,40,217,.25);border-radius:5px;padding:3px 10px;font-size:.75rem;font-weight:700;">🎟 ${general} General</span>`;
+  }
+  if (total === 0) {
+    pills.innerHTML = '<span class="text-muted" style="font-size:.78rem;">Enter seat counts above</span>';
+  }
+
+  document.getElementById('previewTotal').textContent = `Total: ${total} seat${total !== 1 ? 's' : ''}`;
+}
+// Run on load
+updatePreview();
+</script>
+{% endblock %}

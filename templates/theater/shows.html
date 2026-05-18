@@ -1,0 +1,244 @@
+{% extends "theater/base_owner.html" %}
+{% block title %}Shows{% endblock %}
+{% block page_title %}🎬 My Shows{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body{font-family:"Inter",sans-serif!important;}h1,h2,h3,h4,h5,.section-title{font-family:"Poppins",sans-serif!important;font-weight:800!important;}</style>
+<style>
+.show-status-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 10px; border-radius:20px; font-size:.72rem; font-weight:700;
+}
+.show-row { transition: background .15s; }
+.show-row:hover { background: rgba(59,130,246,.04) !important; }
+.show-movie-avatar {
+  width:36px; height:36px; border-radius:8px;
+  background: linear-gradient(135deg,#3B82F6,#1D4ED8);
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; font-weight:800; font-size:.75rem; flex-shrink:0;
+}
+.screen-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  background:rgba(59,130,246,.1); color:#3B82F6;
+  border:1px solid rgba(59,130,246,.2); border-radius:6px;
+  padding:2px 8px; font-size:.75rem; font-weight:600;
+}
+.seats-bar { height:5px; border-radius:3px; background:#e2e8f0; overflow:hidden; margin-top:4px; }
+.seats-bar-fill { height:100%; border-radius:3px; transition:width .4s ease; }
+.time-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  background:rgba(16,185,129,.1); color:#059669;
+  border:1px solid rgba(16,185,129,.2); border-radius:6px;
+  padding:3px 9px; font-size:.78rem; font-weight:700;
+}
+.price-tag { color:#059669; font-weight:700; font-size:.9rem; }
+.shows-filters { display:flex; gap:10px; flex-wrap:wrap; }
+.filter-btn {
+  padding:6px 14px; border-radius:20px; font-size:.78rem; font-weight:600;
+  border:1.5px solid #e2e8f0; background:#fff; color:#64748b; cursor:pointer; transition:all .15s;
+}
+.filter-btn.active, .filter-btn:hover { border-color:#3B82F6; background:#eff6ff; color:#3B82F6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Loading skeleton -->
+<div id="shows-skeleton" style="display:block;">
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:18px;">
+    {% for _ in range(5) %}
+    <div style="background:#f1f5f9;border-radius:12px;padding:14px 16px;animation:pulse 1.5s ease-in-out infinite;">
+      <div style="height:28px;background:#e2e8f0;border-radius:6px;margin-bottom:8px;"></div>
+      <div style="height:12px;background:#e2e8f0;border-radius:4px;width:70%;"></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% for _ in range(5) %}
+  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:8px;animation:pulse 1.5s ease-in-out infinite;">
+    <div style="height:16px;background:#e2e8f0;border-radius:4px;width:40%;margin-bottom:8px;"></div>
+    <div style="height:12px;background:#e2e8f0;border-radius:4px;width:70%;"></div>
+  </div>
+  {% endfor %}
+</div>
+<style>@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}</style>
+<div id="shows-main" style="display:none;">
+{% if show_stats is defined %}{% endif %}
+
+
+<!-- Header -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h5 class="fw-bold mb-0" style="font-family:'Poppins',sans-serif;">
+      🎬 Scheduled Shows
+    </h5>
+    <p class="text-muted small mb-0">
+      📋 {{ shows|length }} show{{ 's' if shows|length != 1 }} total
+    </p>
+  </div>
+  <a href="{{ url_for('owner.add_show') }}" class="btn btn-bms">
+    <i class="bi bi-lightning-fill me-1"></i>Auto Generate Shows
+  </a>
+</div>
+
+<!-- Summary strip — 2 meaningful cards only -->
+{% if shows %}
+{% set ts = namespace(val=0) %}{% for s in shows %}{% set ts.val = ts.val + (s.available_seats or 0) %}{% endfor %}
+{% set total_seats = ts.val %}
+<div class="row g-3 mb-4">
+  <div class="col-6">
+    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:14px;padding:20px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 8px rgba(59,130,246,.08);">
+      <div style="font-size:2rem;">🎬</div>
+      <div>
+        <div style="font-size:1.6rem;font-weight:900;font-family:'Poppins',sans-serif;color:#1D4ED8;line-height:1;">{{ show_stats.upcoming if show_stats is defined else shows|length }}</div>
+        <div style="font-size:.75rem;color:#3B82F6;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:3px;">Upcoming Shows</div>
+        <div style="font-size:.68rem;color:#93C5FD;margin-top:2px;">Scheduled from today onwards</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:14px;padding:20px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 8px rgba(16,185,129,.08);">
+      <div style="font-size:2rem;">💺</div>
+      <div>
+        <div style="font-size:1.6rem;font-weight:900;font-family:'Poppins',sans-serif;color:#15803D;line-height:1;">{{ "{:,}".format(total_seats) }}</div>
+        <div style="font-size:.75rem;color:#16A34A;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:3px;">Seats Available</div>
+        <div style="font-size:.68rem;color:#86EFAC;margin-top:2px;">Across shows on this page</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+
+<!-- Shows Table -->
+<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);">
+  <div class="d-flex align-items-center justify-content-between px-4 py-3" style="border-bottom:1px solid #e2e8f0;background:#fff;">
+    <span class="fw-semibold" style="font-size:.9rem;color:#0f172a;">
+      🎟️ All Scheduled Shows
+    </span>
+    <span style="font-size:.82rem;color:#64748b;">{{ shows|length }} shows</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table align-middle mb-0" id="shows-table">
+      <thead>
+        <tr style="background:#EFF6FF;border-bottom:2px solid #BFDBFE;">
+          <th class="px-4 py-3" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:#1D4ED8;font-weight:700;white-space:nowrap;">🎬 Movie</th>
+          <th class="py-3" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:#1D4ED8;font-weight:700;white-space:nowrap;">🏟️ Theater</th>
+          <th class="py-3" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:#1D4ED8;font-weight:700;white-space:nowrap;">🖥️ Screen</th>
+          <th class="py-3" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:#1D4ED8;font-weight:700;white-space:nowrap;">📅 Date</th>
+          <th class="py-3" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:#1D4ED8;font-weight:700;white-space:nowrap;">🕐 Time</th>
+          <th class="py-3" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:#1D4ED8;font-weight:700;white-space:nowrap;">💰 Price</th>
+          <th class="py-3" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:#1D4ED8;font-weight:700;white-space:nowrap;">💺 Seats</th>
+          <th class="py-3" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:#1D4ED8;font-weight:700;white-space:nowrap;">Action</th>
+        </tr>
+      </thead>
+      <tbody id="shows-tbody">
+        {% for s in shows %}
+        {% set av = s.available_seats or 0 %}
+        {% set total_cap = s.screen.total_seats if s.screen and s.screen.total_seats else (av + 1) %}
+        {% set fill_pct = ((total_cap - av) / total_cap * 100)|round(0)|int if total_cap > 0 else 0 %}
+        {% set fill_color = '#10B981' if av > 20 else '#F59E0B' if av > 0 else '#EF4444' %}
+        <tr class="show-row" style="border-bottom:1px solid #f1f5f9;">
+          <td class="px-4 py-3">
+            <div class="d-flex align-items-center gap-2">
+              <div class="show-movie-avatar">{{ s.movie.title[:2].upper() }}</div>
+              <div>
+                <div class="fw-semibold" style="font-size:.85rem;color:#0f172a;">{{ s.movie.title }}</div>
+                {% if s.movie.genre %}
+                <div style="font-size:.7rem;color:#94a3b8;">{{ s.movie.genre }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </td>
+          <td class="py-3">
+            <div style="font-size:.83rem;font-weight:600;color:#1e293b;">{{ s.theater.name }}</div>
+            <div style="font-size:.7rem;color:#94a3b8;"><i class="bi bi-geo-alt"></i> {{ s.theater.city }}</div>
+          </td>
+          <td class="py-3">
+            <span class="screen-badge">
+              🖥️ {{ s.screen.screen_number if s.screen else '—' }}
+            </span>
+          </td>
+          <td class="py-3">
+            <div style="font-size:.83rem;font-weight:600;color:#1e293b;">
+              📅 {{ s.show_date_display }}
+            </div>
+            <div style="font-size:.7rem;color:#94a3b8;">{{ s.show_date_obj.strftime('%A') if s.show_date_obj else '' }}</div>
+          </td>
+          <td class="py-3">
+            <span class="time-badge">🕐 {{ s.start_time[:5] if s.start_time else '—' }}</span>
+          </td>
+          <td class="py-3">
+            <span class="price-tag">₹{{ s.price_per_ticket }}</span>
+          </td>
+          <td class="py-3" style="min-width:100px;">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span style="font-size:.8rem;font-weight:700;color:{{ fill_color }};">
+                {% if av == 0 %}🔴 Housefull{% elif av <= 20 %}🟡 {{ av }} left{% else %}🟢 {{ av }} left{% endif %}
+              </span>
+            </div>
+            <div class="seats-bar">
+              <div class="seats-bar-fill" style="width:{{ fill_pct }}%;background:{{ fill_color }};"></div>
+            </div>
+          </td>
+          <td class="py-3 pe-3">
+            <form method="POST" action="{{ url_for('owner.delete_show', show_id=s.show_id) }}" onsubmit="return confirm('🗑️ Delete this show?')">
+              <button class="btn btn-sm" style="border-radius:8px;border:1.5px solid #fee2e2;color:#ef4444;background:#fff0f0;padding:5px 10px;" title="Delete Show">
+                🗑️
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center py-5">
+            <div style="font-size:3rem;margin-bottom:12px;">🎭</div>
+            <div class="fw-semibold text-muted mb-1">No shows scheduled yet</div>
+            <div class="text-muted small mb-3">Schedule your first show to get started</div>
+            <a href="{{ url_for('owner.add_show') }}" class="btn btn-bms btn-sm">
+              <i class="bi bi-lightning-fill me-1"></i>Auto Generate Shows
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <!-- Server-side Pagination -->
+  {% if pagination and pagination.pages > 1 %}
+  <div class="d-flex align-items-center justify-content-between px-4 py-3" style="border-top:1px solid #e2e8f0;background:#FAFBFC;">
+    <div style="font-size:.82rem;color:#64748B;">
+      Showing {{ (pagination.page-1)*50+1 }}–{{ [(pagination.page)*50, pagination.total]|min }} of {{ pagination.total }} shows
+    </div>
+    <div class="d-flex gap-1">
+      {% if pagination.has_prev %}
+        <a href="?page={{ pagination.prev_num }}" class="btn btn-sm btn-outline-primary fw-semibold">‹ Prev</a>
+      {% endif %}
+      {% for p in pagination.iter_pages(left_edge=1,right_edge=1,left_current=2,right_current=2) %}
+        {% if p %}
+          <a href="?page={{ p }}" class="btn btn-sm {% if p == pagination.page %}btn-primary{% else %}btn-outline-secondary{% endif %}">{{ p }}</a>
+        {% else %}
+          <span class="btn btn-sm btn-outline-secondary disabled">…</span>
+        {% endif %}
+      {% endfor %}
+      {% if pagination.has_next %}
+        <a href="?page={{ pagination.next_num }}" class="btn btn-sm btn-outline-primary fw-semibold">Next ›</a>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="px-4 py-2" style="border-top:1px solid #e2e8f0;background:#FAFBFC;">
+    <span style="font-size:.82rem;color:#64748B;">{{ show_stats.total }} shows total</span>
+  </div>
+  {% endif %}
+</div>
+</div><!-- end shows-main -->
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+  setTimeout(function() {
+    document.getElementById('shows-skeleton').style.display = 'none';
+    document.getElementById('shows-main').style.display = 'block';
+  }, 300);
+});
+</script>
+
+{% endblock %}

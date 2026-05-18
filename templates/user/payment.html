@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% block title %}Payment — CineHub{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{font-family:"Inter",sans-serif!important;}
+h1,h2,h3,h4,h5,.section-title,.display-title{font-family:"Poppins",sans-serif!important;font-weight:800!important;letter-spacing:.5px;}
+</style>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<style>
+/* ── Payment option rows ──────────────────────── */
+.pay-row {
+  display:flex; align-items:center; gap:14px;
+  padding:14px 18px; border-radius:12px; cursor:pointer;
+  border:2px solid var(--border-1); background:var(--bg-card);
+  transition:all .2s; margin-bottom:10px; position:relative;
+}
+.pay-row:hover { border-color:var(--ch-primary); background:rgba(59,130,246,.06); }
+.pay-row.active { border-color:var(--ch-primary)!important; background:rgba(59,130,246,.1)!important; box-shadow:0 0 0 3px rgba(59,130,246,.12); }
+.pay-row input[type=radio] { display:none; }
+.pay-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.15rem; flex-shrink:0; }
+.pay-label { font-weight:700; font-size:.9rem; color:var(--txt-primary); }
+.pay-sub   { font-size:.72rem; color:var(--txt-muted); margin-top:1px; }
+.pay-badge { margin-left:auto; flex-shrink:0; background:rgba(16,185,129,.15); color:#34D399; border:1px solid rgba(16,185,129,.3); font-size:.68rem; font-weight:800; padding:2px 9px; border-radius:10px; }
+.pay-badge.rec { background:rgba(59,130,246,.15); color:var(--ch-primary); border-color:rgba(59,130,246,.3); }
+
+/* ── QR panel ─────────────────────────────────── */
+.qr-panel {
+  background:var(--bg-2); border:2px dashed var(--ch-primary);
+  border-radius:16px; padding:24px; text-align:center;
+  margin-bottom:14px; display:none;
+}
+.qr-panel.show { display:block; }
+.qr-frame {
+  width:190px; height:190px; border-radius:14px;
+  background:#fff; padding:10px; display:inline-block;
+  box-shadow:0 4px 20px rgba(59,130,246,.2);
+}
+.qr-frame img { width:100%; height:100%; object-fit:contain; border-radius:6px; }
+.upi-amount-chip {
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(59,130,246,.1); border:1px solid rgba(59,130,246,.2);
+  color:var(--ch-primary); font-weight:800; font-size:.95rem;
+  padding:6px 16px; border-radius:20px; margin:12px 0 6px;
+}
+.upi-apps { display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-top:10px; }
+.upi-app-badge {
+  display:flex; align-items:center; gap:5px;
+  background:var(--bg-3); border:1px solid var(--border-1);
+  border-radius:8px; padding:4px 10px; font-size:.72rem; font-weight:600; color:var(--txt-secondary);
+}
+
+/* ── Steps ────────────────────────────────────── */
+.step-bar { display:flex; align-items:center; gap:6px; margin-bottom:26px; }
+.step { display:flex; align-items:center; gap:6px; font-size:.78rem; font-weight:600; color:var(--txt-muted); }
+.step .sn { width:22px; height:22px; border-radius:50%; background:var(--bg-3); display:flex; align-items:center; justify-content:center; font-size:.68rem; font-weight:800; }
+.step.done .sn { background:var(--ch-green); color:#fff; }
+.step.active .sn { background:var(--ch-primary); color:#fff; }
+.step.active { color:var(--txt-primary); }
+.step-line { flex:1; height:1px; background:var(--border-1); }
+
+/* ── Timer ────────────────────────────────────── */
+.pay-timer { display:inline-flex; align-items:center; gap:6px; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.2); color:var(--ch-gold); font-size:.8rem; font-weight:700; padding:5px 14px; border-radius:20px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width:860px;">
+
+  <!-- Steps -->
+  <div class="step-bar">
+    <div class="step done"><div class="sn"><i class="bi bi-check-lg" style="font-size:.65rem;"></i></div><span>Seats Selected</span></div>
+    <div class="step-line"></div>
+    <div class="step active"><div class="sn">2</div><span>Payment</span></div>
+    <div class="step-line"></div>
+    <div class="step"><div class="sn">3</div><span>Confirmation</span></div>
+  </div>
+
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <h4 class="fw-bold mb-0" style="font-family:'Poppins',sans-serif;">
+      <i class="bi bi-credit-card me-2" style="color:var(--ch-primary);"></i>Complete Payment
+    </h4>
+    <div class="pay-timer"><i class="bi bi-clock"></i><span id="payTimer">15:00</span></div>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- ── Order Summary ──────────────────────────────────────── -->
+    <div class="col-md-5 order-md-2">
+      <div class="bms-card p-3" style="position:sticky;top:80px;">
+        <h6 class="fw-bold mb-3" style="font-family:'Poppins',sans-serif;">
+          <i class="bi bi-receipt me-2" style="color:var(--ch-primary);"></i>Order Summary
+        </h6>
+        <div class="mb-3 pb-3 border-bottom">
+          <div class="fw-bold mb-1" style="color:var(--txt-primary);">{{ show.movie.title }}</div>
+          <div class="small" style="color:var(--txt-muted);">
+            <div><i class="bi bi-building me-1"></i>{{ show.theater.name }}, {{ show.theater.city }}</div>
+            <div><i class="bi bi-calendar3 me-1"></i>{{ show.show_date_display }}</div>
+            <div><i class="bi bi-clock me-1"></i>{{ show.start_time[:5] if show.start_time else '—' }}</div>
+          </div>
+        </div>
+        <div class="mb-3 pb-3 border-bottom">
+          <div class="small fw-semibold mb-2" style="color:var(--txt-muted);">Seats ({{ booking.total_tickets }})</div>
+          <div class="d-flex flex-wrap gap-1">
+            {% if seats %}
+              {% for s in seats %}
+              <span style="background:var(--bg-3);color:var(--txt-secondary);border:1px solid var(--border-1);font-size:.72rem;padding:3px 8px;border-radius:6px;font-weight:600;">
+                {{ s.seat_number }}<span style="color:var(--txt-muted);"> ({{ s.seat_type }})</span>
+              </span>
+              {% endfor %}
+            {% else %}
+              <span style="color:var(--txt-muted);font-size:.82rem;">{{ booking.total_tickets }} seat(s) selected</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="d-flex justify-content-between small mb-1" style="color:var(--txt-secondary);">
+          <span>Base × {{ booking.total_tickets }}</span>
+          <span>₹{{ "%.2f"|format((show.price_per_ticket or 0)|float * booking.total_tickets) }}</span>
+        </div>
+        {% for s in seats %}{% if s.charges and s.charges > 0 %}
+        <div class="d-flex justify-content-between small mb-1" style="color:var(--txt-secondary);">
+          <span>{{ s.seat_number }} premium</span><span>+₹{{ "%.2f"|format((s.charges or 0)|float) }}</span>
+        </div>
+        {% endif %}{% endfor %}
+        <div class="d-flex justify-content-between fw-bold mt-2 pt-2 border-top">
+          <span style="font-family:'Poppins',sans-serif;color:var(--txt-primary);">Total Payable</span>
+          <span style="color:var(--ch-primary);font-size:1.15rem;">₹{{ "%.2f"|format(total) }}</span>
+        </div>
+        <div class="mt-3 d-flex align-items-center gap-2" style="color:var(--txt-muted);font-size:.74rem;">
+          <i class="bi bi-shield-check-fill" style="color:var(--ch-green);"></i>
+          100% Secure · SSL Encrypted
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Payment Methods ───────────────────────────────────── -->
+    <div class="col-md-7 order-md-1">
+      <div class="bms-card p-4">
+        <h6 class="fw-bold mb-3" style="font-family:'Poppins',sans-serif;color:var(--txt-primary);">
+          Select Payment Method
+        </h6>
+
+        <!-- ① UPI with your QR -->
+        <label class="pay-row active" onclick="selectPay(this,'UPI')">
+          <input type="radio" name="pay_method" value="UPI" checked>
+          <div class="pay-icon" style="background:rgba(59,130,246,.1);"><i class="bi bi-phone" style="color:var(--ch-primary);"></i></div>
+          <div>
+            <div class="pay-label">UPI</div>
+            <div class="pay-sub">PhonePe · GPay · Paytm · BHIM</div>
+          </div>
+          <span class="pay-badge">Instant</span>
+        </label>
+
+        <!-- UPI QR Panel (shown when UPI is selected) -->
+        <div class="qr-panel show" id="upi-qr-panel">
+          <div style="font-size:.72rem;font-weight:700;color:var(--ch-primary);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;">
+            <i class="bi bi-qr-code me-1"></i>Scan & Pay with any UPI App
+          </div>
+          <div class="qr-frame">
+            {# ════════════════════════════════════════════════════════════
+               YOUR QR CODE:
+               Save your UPI QR image as:  static/images/upi_qr.png
+               It will appear here automatically.
+               If file not found, a dynamic QR is shown as fallback.
+            ══════════════════════════════════════════════════════════════ #}
+            <img id="upiQrImg"
+                 src="{{ url_for('static', filename='images/upi_qr.png') }}"
+                 alt="UPI QR Code"
+                 onerror="this.onerror=null;this.src='https://api.qrserver.com/v1/create-qr-code/?size=170x170&color=1D4ED8&bgcolor=ffffff&data=upi://pay?pa=affu68526%40upi%26pn=CineHub%26am={{ total|int }}%26cu=INR%26tn=BK{{ booking.booking_id }}';"/>
+          </div>
+          <div class="upi-amount-chip">
+            <i class="bi bi-currency-rupee"></i>{{ "%.2f"|format(total) }}
+          </div>
+          <div style="font-size:.74rem;color:var(--txt-muted);">Open any UPI app → Scan → Pay</div>
+          <div class="upi-apps">
+            {% for app, icon in [('PhonePe','📲'),('GPay','💳'),('Paytm','💰'),('BHIM','🏦')] %}
+            <div class="upi-app-badge">{{ icon }} {{ app }}</div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- ② Credit Card -->
+        <label class="pay-row" onclick="selectPay(this,'Credit Card')">
+          <input type="radio" name="pay_method" value="Credit Card">
+          <div class="pay-icon" style="background:rgba(139,92,246,.1);"><i class="bi bi-credit-card" style="color:#8B5CF6;"></i></div>
+          <div>
+            <div class="pay-label">Credit Card</div>
+            <div class="pay-sub">Visa · Mastercard · Amex · RuPay</div>
+          </div>
+        </label>
+
+        <!-- ③ Debit Card -->
+        <label class="pay-row" onclick="selectPay(this,'Debit Card')">
+          <input type="radio" name="pay_method" value="Debit Card">
+          <div class="pay-icon" style="background:rgba(16,185,129,.1);"><i class="bi bi-credit-card-2-front" style="color:var(--ch-green);"></i></div>
+          <div>
+            <div class="pay-label">Debit Card</div>
+            <div class="pay-sub">All major bank debit cards</div>
+          </div>
+        </label>
+
+        <!-- ④ Net Banking -->
+        <label class="pay-row" onclick="selectPay(this,'Net Banking')">
+          <input type="radio" name="pay_method" value="Net Banking">
+          <div class="pay-icon" style="background:rgba(245,158,11,.1);"><i class="bi bi-bank" style="color:var(--ch-gold);"></i></div>
+          <div>
+            <div class="pay-label">Net Banking</div>
+            <div class="pay-sub">HDFC · SBI · ICICI · Axis · Kotak</div>
+          </div>
+        </label>
+
+        <!-- ⑤ Razorpay (recommended) -->
+        <label class="pay-row" onclick="selectPay(this,'Razorpay')">
+          <input type="radio" name="pay_method" value="Razorpay">
+          <div class="pay-icon" style="background:rgba(6,182,212,.1);"><i class="bi bi-qr-code" style="color:var(--ch-teal);"></i></div>
+          <div>
+            <div class="pay-label">Razorpay</div>
+            <div class="pay-sub">Card · UPI · Wallet · EMI — all in one</div>
+          </div>
+          <span class="pay-badge rec">Recommended</span>
+        </label>
+
+        <!-- Security note -->
+        <div class="alert alert-success d-flex gap-2 align-items-center py-2 mt-3 mb-3" style="font-size:.8rem;">
+          <i class="bi bi-shield-check-fill" style="color:#059669;flex-shrink:0;"></i>
+          <span>100% secure payments. Your data is encrypted with 256-bit SSL.</span>
+        </div>
+
+        <!-- Pay button -->
+        <form method="POST" id="payForm">
+          <input type="hidden" name="payment_method" id="hiddenMethod" value="UPI">
+          <input type="hidden" name="lock_session_id" id="lockSessionPay" value="">
+          <button type="submit" id="payBtn" class="btn btn-bms w-100 py-3" style="font-family:'Poppins',sans-serif;font-size:1rem;letter-spacing:.02em;">
+            <i class="bi bi-lock-fill me-2"></i>Pay ₹{{ "%.2f"|format(total) }} Securely
+          </button>
+        </form>
+
+        <!-- Razorpay hidden form -->
+        <form method="POST" id="rzpForm" style="display:none;">
+          <input type="hidden" name="payment_method" value="Razorpay">
+          <input type="hidden" name="razorpay_payment_id" id="rzpPayId">
+          <input type="hidden" name="lock_session_id" id="lockSessionRzp" value="">
+        </form>
+
+        <!-- Cancel payment / go back -->
+        <form method="POST" action="{{ url_for('user.cancel_payment', booking_id=booking.booking_id) }}" id="cancelPayForm" style="margin-top:10px;">
+          <input type="hidden" name="lock_session_id" id="lockSessionCancel" value="">
+          <button type="submit" class="btn w-100 py-2"
+            style="background:transparent;border:1px solid rgba(239,68,68,.35);color:rgba(239,68,68,.7);
+                   font-family:'Inter',sans-serif;font-size:.82rem;border-radius:10px;"
+            onclick="return confirm('Cancel this booking and release your seats?')">
+            <i class="bi bi-x-circle me-1"></i> Cancel &amp; Release Seats
+          </button>
+        </form>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TOTAL_PAISE = {{ (total * 100)|int }};
+const TOTAL_STR   = "₹{{ '%.2f'|format(total) }}";
+const BOOKING_ID  = "{{ booking.booking_id }}";
+const MOVIE_TITLE = "{{ show.movie.title }}";
+const USER_EMAIL  = "{{ current_user.email }}";
+const USER_NAME   = "{{ current_user.name }}";
+const RZP_KEY     = "rzp_test_Shcqa3gSkCMz5T";
+
+/* ── Select payment method ─────────────────────────────────── */
+function selectPay(labelEl, method) {
+  // Update radio
+  labelEl.querySelector('input[type=radio]').checked = true;
+  // Highlight active row
+  document.querySelectorAll('.pay-row').forEach(r => r.classList.remove('active'));
+  labelEl.classList.add('active');
+  // Update hidden field
+  document.getElementById('hiddenMethod').value = method;
+  // Toggle UPI QR panel
+  document.getElementById('upi-qr-panel').classList.toggle('show', method === 'UPI');
+  // Update button text
+  const btn = document.getElementById('payBtn');
+  if (method === 'Razorpay') {
+    btn.innerHTML = `<i class="bi bi-qr-code me-2"></i>Pay ${TOTAL_STR} via Razorpay`;
+  } else if (method === 'UPI') {
+    btn.innerHTML = `<i class="bi bi-check-circle me-2"></i>Confirm UPI Payment — ${TOTAL_STR}`;
+  } else {
+    btn.innerHTML = `<i class="bi bi-lock-fill me-2"></i>Pay ${TOTAL_STR} Securely`;
+  }
+}
+
+/* ── Form submit → open Razorpay if selected ───────────────── */
+document.getElementById('payForm').addEventListener('submit', function(e) {
+  const method = document.getElementById('hiddenMethod').value;
+  if (method === 'Razorpay') {
+    e.preventDefault();
+    openRazorpay();
+  }
+});
+
+function openRazorpay() {
+  const opts = {
+    key: RZP_KEY,
+    amount: TOTAL_PAISE,
+    currency: 'INR',
+    name: 'CineHub',
+    description: `Booking #${BOOKING_ID} — ${MOVIE_TITLE}`,
+    prefill: { name: USER_NAME, email: USER_EMAIL },
+    theme: { color: '#3B82F6' },
+    handler: function(resp) {
+      document.getElementById('rzpPayId').value = resp.razorpay_payment_id || 'rzp_ok';
+      document.getElementById('rzpForm').submit();
+    },
+    modal: { ondismiss: function() {} }
+  };
+  const rzp = new Razorpay(opts);
+  rzp.on('payment.failed', function(r){ alert('Payment failed: ' + r.error.description); });
+  rzp.open();
+}
+
+/* ── 15-minute countdown ───────────────────────────────────── */
+let secs = 15 * 60;
+const timerEl = document.getElementById('payTimer');
+const tick = setInterval(function() {
+  secs--;
+  if (secs <= 0) {
+    clearInterval(tick);
+    timerEl.textContent = '00:00';
+    timerEl.style.color = '#EF4444';
+    alert('Session expired! Returning to movies…');
+    window.location = "{{ url_for('user.movies') }}";
+    return;
+  }
+  const m = String(Math.floor(secs/60)).padStart(2,'0');
+  const s = String(secs%60).padStart(2,'0');
+  timerEl.textContent = m + ':' + s;
+  if (secs < 120) { timerEl.style.color = '#EF4444'; }
+}, 1000);
+
+/* ── Seat lock session: read from sessionStorage set on seat-selection page ── */
+(function() {
+  const SHOW_ID    = "{{ booking.show_id }}";
+  const RELEASE_URL = "/api/seats/" + SHOW_ID + "/release";
+  const SESSION_ID = sessionStorage.getItem('seat_session_' + SHOW_ID) || '';
+
+  // Populate all hidden lock_session_id fields
+  ['lockSessionPay','lockSessionRzp','lockSessionCancel'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.value = SESSION_ID;
+  });
+
+  // On page close without paying — release the locks via Beacon
+  window.addEventListener('beforeunload', function(){
+    if (!SESSION_ID) return;
+    var payload = JSON.stringify({ session_id: SESSION_ID });
+    navigator.sendBeacon(RELEASE_URL, new Blob([payload], {type:'application/json'}));
+  });
+
+  // When user clicks "Cancel & Release Seats" form, also clear sessionStorage key
+  var cancelForm = document.getElementById('cancelPayForm');
+  if (cancelForm) {
+    cancelForm.addEventListener('submit', function(){
+      sessionStorage.removeItem('seat_session_' + SHOW_ID);
+    });
+  }
+  // When payment succeeds, clear sessionStorage
+  var payForm = document.getElementById('payForm');
+  if (payForm) {
+    payForm.addEventListener('submit', function(){
+      sessionStorage.removeItem('seat_session_' + SHOW_ID);
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% block title %}Movies — CineHub{% endblock %}
+
+{% block head %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ── MOVIE CARD ─────────────────────────────────────────── */
+.movie-card { border-radius:14px;overflow:hidden;background:var(--bg-card);border:1px solid var(--border-1);transition:transform .3s,box-shadow .3s;display:flex;flex-direction:column;height:100%; }
+.movie-card:hover { transform:translateY(-7px);box-shadow:0 20px 44px rgba(59,130,246,.18);border-color:rgba(59,130,246,.3); }
+.movie-poster { height:280px;overflow:hidden;position:relative; }
+.movie-poster img { width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s; }
+.movie-card:hover .movie-poster img { transform:scale(1.06); }
+.movie-poster-fallback { width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column; }
+.movie-poster-title { position:absolute;bottom:0;left:0;right:0;padding:28px 10px 8px;background:linear-gradient(0deg,rgba(0,0,0,.9) 0%,transparent 100%);color:#fff;font-size:.72rem;font-weight:700;font-family:'Poppins',sans-serif; }
+.movie-card-body { padding:10px 12px 6px;flex:1; }
+.movie-card-title { font-family:'Poppins',sans-serif;font-weight:700;font-size:.82rem;color:var(--txt-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px; }
+.movie-card-footer { padding:0 12px 12px; }
+.badge-genre { background:rgba(59,130,246,.08);color:#3B82F6;font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:4px;border:1px solid rgba(59,130,246,.18); }
+.rating-badge { display:inline-flex;align-items:center;gap:3px;background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.22);color:#b45309;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:5px; }
+.movie-avail-badge { display:inline-flex;align-items:center;gap:4px;background:rgba(16,185,129,.08);color:#059669;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;border:1px solid rgba(16,185,129,.18); }
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+/* Barlow overrides for movies page */
+.movies-header h1, .movies-header h2, .movies-header .display-title { font-family:'Barlow Condensed',sans-serif !important; font-weight:900 !important; letter-spacing:1px; }
+.movie-card-title { font-family:'Barlow Condensed',sans-serif !important; font-weight:800 !important; font-size:1.05rem !important; }
+.section-title { font-family:'Barlow Condensed',sans-serif !important; font-weight:900 !important; }
+.filter-label, .genre-pill { font-family:'Barlow',sans-serif !important; }
+input, select, .form-control, .form-select { font-family:'Barlow',sans-serif !important; }
+
+/* ── MOVIES HEADER ─────────────────────────────────────── */
+
+.movies-header { background:linear-gradient(135deg,#070B14 0%,#0D1425 60%,#111A33 100%);padding:28px 0 20px;border-bottom:1px solid rgba(59,130,246,.3);position:relative;overflow:hidden; }
+.movies-header::before { content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 70% 50%,rgba(59,130,246,.12) 0%,transparent 70%);pointer-events:none; }
+
+/* ── FILTER BAR ────────────────────────────────────────── */
+.filter-bar { background:var(--bg-card);border:1px solid var(--border-1);border-radius:14px;padding:16px 20px;margin-bottom:24px;box-shadow:0 4px 20px rgba(0,0,0,.05); }
+.filter-bar .form-select,
+.filter-bar .form-control,
+.filter-bar .input-group-text {
+  background: var(--bg-0) !important;
+  color: var(--txt-primary) !important;
+  border-color: var(--border-1) !important;
+  font-family: 'Inter', sans-serif !important;
+}
+.filter-bar .form-select option {
+  background: #0D1425 !important;
+  color: #e2e8f0 !important;
+}
+.filter-bar .form-select:focus,
+.filter-bar .form-control:focus {
+  background: var(--bg-0) !important;
+  color: var(--txt-primary) !important;
+  border-color: #3B82F6 !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.18) !important;
+}
+.filter-bar .input-group-text {
+  background: var(--bg-0) !important;
+  color: #3B82F6 !important;
+  border-right: none !important;
+}
+.filter-bar .input-group .form-control { border-left: none !important; }
+.filter-bar label.form-label { color: rgba(255,255,255,.45) !important; font-size:.68rem !important; letter-spacing:.8px; }
+/* Select arrow fix for dark bg */
+.filter-bar .form-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 12px !important;
+  padding-right: 32px !important;
+}
+
+/* ── RESULTS COUNT BADGE ──────────────────────────────── */
+.results-pill { display:inline-flex;align-items:center;gap:6px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);color:var(--ch-primary);font-size:.75rem;font-weight:700;padding:4px 12px;border-radius:20px; font-size:.75rem;font-weight:700;padding:4px 12px;border-radius:20px; }
+
+/* ── GENRE POSTER BACKGROUNDS ──────────────────────────── */
+.poster-action    { background:linear-gradient(160deg,#0a1628,#1e3a6e); }
+.poster-comedy    { background:linear-gradient(160deg,#2d1a00,#7a4800); }
+.poster-drama     { background:linear-gradient(160deg,#1a0a0a,#5a1a1a); }
+.poster-horror    { background:linear-gradient(160deg,#050505,#3a0000); }
+.poster-romance   { background:linear-gradient(160deg,#2a0a18,#6e1a3a); }
+.poster-sci-fi    { background:linear-gradient(160deg,#020e1a,#0a3a5a); }
+.poster-thriller  { background:linear-gradient(160deg,#0f0f0f,#2a2a2a); }
+.poster-animation { background:linear-gradient(160deg,#0a1040,#1a3090); }
+.poster-fantasy   { background:linear-gradient(160deg,#1a0a2e,#3a0a5e); }
+.poster-default   { background:linear-gradient(160deg,#111827,#1f2937); }
+
+/* ── NO RESULTS ──────────────────────────────────────── */
+.no-results-wrap { text-align:center;padding:60px 20px; }
+.no-results-icon { width:80px;height:80px;border-radius:50%;background:rgba(59,130,246,.06);border:2px dashed rgba(59,130,246,.2);display:inline-flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:16px;color:rgba(59,130,246,.5); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% set POSTERS = {
+  'avengers':     'https://image.tmdb.org/t/p/w500/or06FN3Dka5tukK1e9sl16pB3iy.jpg',
+  'spider-man':   'https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg',
+  'spider':       'https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg',
+  'batman':       'https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg',
+  'inception':    'https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg',
+  'interstellar': 'https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
+  'joker':        'https://image.tmdb.org/t/p/w500/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg',
+  'dune':         'https://image.tmdb.org/t/p/w500/d5NXSklpcvkCgnpLIOuTkTTkmFc.jpg',
+  'oppenheimer':  'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg',
+  'barbie':       'https://image.tmdb.org/t/p/w500/iuFNMS8U5cb6xfzi51Dbkovj7vM.jpg',
+  'guardians':    'https://image.tmdb.org/t/p/w500/r2J02Z2OpNTctfOSN1Ydgii51I3.jpg',
+  'black panther':'https://image.tmdb.org/t/p/w500/uxzzxijgPIY7slzFvMotPv8wjKA.jpg',
+  'top gun':      'https://image.tmdb.org/t/p/w500/1SK4bkLVzJnhe0ZJGA5MQh6TjjU.jpg',
+  'avatar':       'https://image.tmdb.org/t/p/w500/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg',
+  'thor':         'https://image.tmdb.org/t/p/w500/pIkRyD18kl4FhoCNQuWxWu5cBLM.jpg',
+  'doctor strange':'https://image.tmdb.org/t/p/w500/uJYYizSuA9Y3DCs0qS4qWvHfZg4.jpg',
+  'aquaman':      'https://image.tmdb.org/t/p/w500/2woX1v3WduW8kWGEnuFvNYWBLVS.jpg',
+  'fast':         'https://image.tmdb.org/t/p/w500/fiVW06jE7z9YnO4trhaMEdclSiC.jpg',
+  'mission':      'https://image.tmdb.org/t/p/w500/NNxYkU70HPurnNCSiCjIODnL9.jpg',
+  'john wick':    'https://image.tmdb.org/t/p/w500/fZPSd91yGE9fCcCe6OoQr6E3Bev.jpg',
+  'matrix':       'https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg',
+  'parasite':     'https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg',
+  'soul':         'https://image.tmdb.org/t/p/w500/hm58Jw4Lw8OIeECIq5qyPYhAeRJ.jpg',
+  'encanto':      'https://image.tmdb.org/t/p/w500/4j0PNHkMr5ax3IA8tjtxcmPU3QT.jpg',
+  'frozen':       'https://image.tmdb.org/t/p/w500/kgwjIb2JDHRhNk13lmSxiClFjVk.jpg',
+  'titanic':      'https://image.tmdb.org/t/p/w500/9xjZS2rlVxm8SFx8kPC3aIGCOYQ.jpg',
+  'gladiator':    'https://image.tmdb.org/t/p/w500/ehGpAOOr4ThKBNLgxGdZKysS4xJ.jpg',
+  'kalki':        'https://image.tmdb.org/t/p/w500/oaGvjB0DvdhXhOAuADfHb261ZHa.jpg',
+  'pushpa':       'https://image.tmdb.org/t/p/w500/kqjL17yufvn9OVLyXYpvtyrFfak.jpg',
+  'rrr':          'https://image.tmdb.org/t/p/w500/nEufeZlyAOLqO2brrs0yeF1lgXO.jpg',
+  'bahubali':     'https://image.tmdb.org/t/p/w500/nF3tUPUQD2kHhMF96uYbJGTzJaO.jpg',
+  'dangal':       'https://image.tmdb.org/t/p/w500/ql8fo4AI1hKNJzEqIXqkQH2lf3s.jpg',
+  'pk':           'https://image.tmdb.org/t/p/w500/4bCMmqFbQi6rUbKPwEPTYtnCGH9.jpg',
+  'war':          'https://image.tmdb.org/t/p/w500/2J6CkG0lNJeTOL1X7y8dCCEdg2w.jpg',
+  'panda':        'https://image.tmdb.org/t/p/w500/nCJJ3NVksYNxIzEHcyC1XzNFNKO.jpg',
+  'kung fu':      'https://image.tmdb.org/t/p/w500/nCJJ3NVksYNxIzEHcyC1XzNFNKO.jpg',
+  'iron man':     'https://image.tmdb.org/t/p/w500/78lPtwv72eTNqFW9COBR0IZDIiI.jpg',
+  'captain':      'https://image.tmdb.org/t/p/w500/rjkmN1dniUHVYAtwuV3Tji7FsDO.jpg',
+  'wonder woman': 'https://image.tmdb.org/t/p/w500/imekS7f1OuHyUP2LAiTEM0zBzUz.jpg',
+  'black widow':  'https://image.tmdb.org/t/p/w500/qAZ0pzat24kLdO3o8ejmbLxyOac.jpg',
+  'deadpool':     'https://image.tmdb.org/t/p/w500/en971MEXui9diirXlogOrPKmsEn.jpg',
+  'wolverine':    'https://image.tmdb.org/t/p/w500/en971MEXui9diirXlogOrPKmsEn.jpg',
+  'transformers': 'https://image.tmdb.org/t/p/w500/2BTZbyBb40PoLTr9CGbSer35GK1.jpg',
+  'jurassic':     'https://image.tmdb.org/t/p/w500/eo3eMm6ESK55HsGsqRMOkrgSSiT.jpg',
+  'star wars':    'https://image.tmdb.org/t/p/w500/6FfCtAuVAW8XJjZ7eWeLibRLWTw.jpg',
+  'harry potter': 'https://image.tmdb.org/t/p/w500/wuMc08IPKEatf9rnMNXvIDxqP4W.jpg',
+  'venom':        'https://image.tmdb.org/t/p/w500/t9XkeE7HzOsdQcDDDapDYh8Rrmt.jpg',
+  'morbius':      'https://image.tmdb.org/t/p/w500/6JjfSchsU6daXk2AKX8EEBjO3Fm.jpg',
+  'shang-chi':    'https://image.tmdb.org/t/p/w500/1BIoJGKbXjdFDAqUEiA2VHqkK1Z.jpg',
+  'eternals':     'https://image.tmdb.org/t/p/w500/bcCBq9N1EMo3n7stehVialL2nM6.jpg',
+  'wakanda':      'https://image.tmdb.org/t/p/w500/sv1xJUazXeYqALzczSZ3O6nkH75.jpg'
+} %}
+{% macro poster_url(title) -%}
+  {%- set tl = title|lower -%}
+  {%- set r = namespace(u='') -%}
+  {%- for k,v in POSTERS.items() -%}{%- if k in tl and not r.u -%}{%- set r.u = v -%}{%- endif -%}{%- endfor -%}
+  {%- if not r.u -%}https://picsum.photos/seed/{{ (title|lower|replace(' ',''))[:10] }}/500/750{%- else -%}{{ r.u }}{%- endif -%}
+{%- endmacro %}
+
+<!-- Page Header -->
+<div class="movies-header">
+  <div class="container-xl">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+      <div>
+        <h4 class="text-white mb-1" style="font-family:'Poppins',sans-serif;font-weight:800;font-size:1.5rem;">
+          <i class="fas fa-film me-2" style="color:#3B82F6;"></i>
+          {% if q %}Results for "{{ q }}"{% else %}Now Showing{% endif %}
+        </h4>
+        <p class="mb-0" style="color:rgba(255,255,255,.45);font-size:.8rem;">Movies with active theaters &amp; available seats</p>
+      </div>
+      <span class="results-pill"><i class="fas fa-ticket-alt"></i> {{ movies_page.total }} movie{{ 's' if movies_page.total != 1 else '' }} available</span>
+    </div>
+  </div>
+</div>
+
+<div class="container-xl py-4">
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-muted text-uppercase" style="letter-spacing:.6px;font-size:.7rem;">Search</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" name="q" class="form-control" placeholder="Movie title…" value="{{ q }}">
+        </div>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold text-muted text-uppercase" style="letter-spacing:.6px;font-size:.7rem;">City</label>
+        <select name="city" class="form-select">
+          <option value="">All Cities</option>
+          {% for c in cities %}<option value="{{ c }}" {{ 'selected' if c==selected_city }}>{{ c }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold text-muted text-uppercase" style="letter-spacing:.6px;font-size:.7rem;">Genre</label>
+        <select name="genre" class="form-select">
+          <option value="">All Genres</option>
+          {% for g in genres %}<option value="{{ g }}" {{ 'selected' if g==selected_genre }}>{{ g }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold text-muted text-uppercase" style="letter-spacing:.6px;font-size:.7rem;">Language</label>
+        <select name="language" class="form-select">
+          <option value="">All Languages</option>
+          {% for l in languages %}<option value="{{ l }}" {{ 'selected' if l==selected_lang }}>{{ l }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-bms flex-fill"><i class="bi bi-funnel me-1"></i>Filter</button>
+        <a href="{{ url_for('user.movies') }}" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Movie Grid: 24 per page, city-filtered -->
+  <div id="movies-grid" class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-3">
+    {% for movie in movies_page.items %}
+    {% set pg = (movie.genre or 'default')|lower|replace(' ','-')|replace('/','-') %}
+    {% set purl = poster_url(movie.title) %}
+    <div class="col movie-col">
+      <div class="movie-card">
+        <div class="movie-poster">
+          <img src="{{ purl }}" alt="{{ movie.title }}"
+            loading="lazy"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="movie-poster-fallback poster-{{ pg }}" style="display:none;">
+            <span style="font-size:2.5rem;">🎬</span>
+            <span style="font-size:.65rem;color:rgba(255,255,255,.5);font-weight:600;text-align:center;padding:0 8px;">{{ movie.title[:22] }}</span>
+          </div>
+          <div class="movie-poster-title">{{ movie.title }}</div>
+          <div style="position:absolute;top:8px;left:8px;">
+            <span class="movie-avail-badge"><i class="fas fa-circle" style="font-size:.38rem;"></i> LIVE</span>
+          </div>
+          {% if movie.rating %}
+          <div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.65);color:#F5A623;font-size:.65rem;font-weight:800;padding:3px 8px;border-radius:5px;backdrop-filter:blur(4px);display:flex;align-items:center;gap:3px;">
+            <i class="fas fa-star" style="font-size:.55rem;"></i>{{ "%.1f"|format(movie.rating) }}
+          </div>
+          {% endif %}
+        </div>
+        <div class="movie-card-body">
+          <div class="movie-card-title" title="{{ movie.title }}">{{ movie.title }}</div>
+          <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+            {% if movie.genre %}<span class="badge-genre">{{ movie.genre }}</span>{% endif %}
+            {% if movie.language %}<span class="text-muted" style="font-size:.7rem;">{{ movie.language }}</span>{% endif %}
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="rating-badge"><i class="bi bi-star-fill"></i> {{ "%.1f"|format(movie.rating or 0) }}</span>
+            {% if movie.duration %}<span class="text-muted" style="font-size:.68rem;"><i class="fas fa-clock me-1" style="font-size:.58rem;"></i>{{ movie.duration }}m</span>{% endif %}
+          </div>
+        </div>
+        <div class="movie-card-footer">
+          <a href="{{ url_for('user.movie_detail', movie_id=movie.movie_id) }}{% if selected_city %}?city={{ selected_city }}{% endif %}"
+             data-movie-id="{{ movie.movie_id }}"
+             class="btn btn-bms btn-sm w-100 btn-book-now"><i class="fas fa-ticket-alt me-1"></i>Book Now</a>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+      <div class="no-results-wrap">
+        <div class="no-results-icon">🎬</div>
+        <h5 class="fw-bold mb-2" style="font-family:'Poppins',sans-serif;">No movies available</h5>
+        <p class="text-muted small mb-3">
+          {% if selected_city %}No movies showing in <strong>{{ selected_city }}</strong>. {% endif %}
+          Try a different city or clear filters.
+        </p>
+        <a href="{{ url_for('user.movies') }}" class="btn btn-bms btn-sm"><i class="fas fa-redo me-1"></i>Clear Filters</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if movies_page.pages > 1 %}
+  <nav class="d-flex align-items-center justify-content-between mt-4 mb-2 flex-wrap gap-3">
+    <div style="font-size:.83rem;color:var(--txt-muted);">
+      Showing page <strong>{{ movies_page.page }}</strong> of <strong>{{ movies_page.pages }}</strong>
+      &nbsp;·&nbsp; <strong>{{ movies_page.total }}</strong> movies
+      {% if selected_city %} in <strong style="color:#60A5FA;">{{ selected_city }}</strong>{% endif %}
+    </div>
+    <div class="d-flex gap-1 flex-wrap">
+      {% set base_qs %}{% if selected_city %}&city={{ selected_city }}{% endif %}{% if selected_genre %}&genre={{ selected_genre }}{% endif %}{% if selected_lang %}&language={{ selected_lang }}{% endif %}{% if q %}&q={{ q }}{% endif %}{% endset %}
+      {% if movies_page.has_prev %}
+      <a href="?page={{ movies_page.page - 1 }}{{ base_qs }}" class="btn btn-sm btn-outline-secondary">‹ Prev</a>
+      {% endif %}
+      {% for p in range(1, movies_page.pages + 1) %}
+        {% if p == movies_page.page %}
+          <button class="btn btn-sm btn-primary" disabled>{{ p }}</button>
+        {% elif p == 1 or p == movies_page.pages or (p >= movies_page.page - 2 and p <= movies_page.page + 2) %}
+          <a href="?page={{ p }}{{ base_qs }}" class="btn btn-sm btn-outline-secondary">{{ p }}</a>
+        {% elif p == 2 or p == movies_page.pages - 1 %}
+          <span class="btn btn-sm disabled">…</span>
+        {% endif %}
+      {% endfor %}
+      {% if movies_page.has_next %}
+      <a href="?page={{ movies_page.page + 1 }}{{ base_qs }}" class="btn btn-sm btn-outline-secondary">Next ›</a>
+      {% endif %}
+    </div>
+  </nav>
+  {% endif %}
+
+</div>
+<script>
+(function(){
+  const serverCity = "{{ selected_city or '' }}";
+  const saved = serverCity || localStorage.getItem('cinehub_city') || '';
+
+  // Pre-select city in filter dropdown
+  const citySelect = document.querySelector('select[name="city"]');
+  if (citySelect && !serverCity && saved) {
+    for (let i = 0; i < citySelect.options.length; i++) {
+      if (citySelect.options[i].value === saved) { citySelect.selectedIndex = i; break; }
+    }
+  }
+
+  // Update Book Now links with city
+  const activeCity = serverCity || saved;
+  if (activeCity) {
+    document.querySelectorAll('a.btn-book-now[data-movie-id]').forEach(a => {
+      a.href = `/movies/${a.dataset.movieId}?city=${encodeURIComponent(activeCity)}`;
+    });
+  }
+
+  // Save city on change
+  if (citySelect) {
+    citySelect.addEventListener('change', () => {
+      if (citySelect.value) localStorage.setItem('cinehub_city', citySelect.value);
+      else localStorage.removeItem('cinehub_city');
+    });
+  }
+
+  // If no server city but localStorage has one, redirect to show city-filtered movies
+  if (!serverCity && saved) {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.get('city')) {
+      url.searchParams.set('city', saved);
+      url.searchParams.delete('page');
+      window.location.replace(url.toString());
+    }
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,466 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Theater Owners – Admin{% endblock %}
+{% block page_title %}Theater Owners{% endblock %}
+
+{% block head %}
+<style>
+/* ── Page Layout ── */
+.to-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.to-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.to-title h4 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 1.3rem;
+  margin: 0;
+  color: #1a202c;
+}
+.to-title .badge-count {
+  background: #EFF6FF;
+  color: #2563EB;
+  border: 1px solid #BFDBFE;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 10px;
+}
+
+/* ── Filter Bar ── */
+.filter-bar {
+  background: #fff;
+  border: 1px solid #E8EDF2;
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+.filter-bar .form-control,
+.filter-bar .form-select {
+  border-radius: 9px;
+  border: 1.5px solid #E2E8F0;
+  font-size: 0.85rem;
+  height: 38px;
+  background: #F8FAFC;
+}
+.filter-bar .form-control:focus,
+.filter-bar .form-select:focus {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+  background: #fff;
+}
+.filter-bar .btn-filter {
+  border-radius: 9px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0 16px;
+  height: 38px;
+}
+.search-wrap { position: relative; flex: 1; min-width: 200px; }
+.search-wrap .bi-search {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94A3B8;
+  font-size: 0.85rem;
+}
+.search-wrap input { padding-left: 32px; }
+
+/* ── Table Card ── */
+.owners-card {
+  background: #fff;
+  border: 1px solid #E8EDF2;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,.05);
+}
+.owners-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.owners-table thead th {
+  background: #F8FAFC;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #64748B;
+  padding: 14px 20px;
+  border-bottom: 1px solid #E8EDF2;
+  white-space: nowrap;
+}
+.owners-table tbody tr {
+  border-bottom: 1px solid #F1F5F9;
+  transition: background .15s;
+}
+.owners-table tbody tr:last-child { border-bottom: none; }
+.owners-table tbody tr:hover { background: #F8FBFF; }
+.owners-table td { padding: 16px 20px; vertical-align: middle; }
+
+/* ── Avatar ── */
+.owner-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  color: #fff;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.owner-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1a202c;
+}
+.owner-email {
+  font-size: 0.78rem;
+  color: #64748B;
+}
+
+/* ── Brand Cell ── */
+.brand-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+.brand-logo-wrap {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #EFF6FF, #E0F2FE);
+  border: 1px solid #BAE6FD;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.brand-info { display: flex; flex-direction: column; }
+.brand-name-text {
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: #0369A1;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.theater-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  color: #64748B;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+/* ── Status Badge ── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 20px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 4px 11px;
+}
+.status-badge.active {
+  background: #DCFCE7;
+  color: #15803D;
+  border: 1px solid #BBF7D0;
+}
+.status-badge.inactive {
+  background: #FEF2F2;
+  color: #B91C1C;
+  border: 1px solid #FECACA;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.status-badge.active .status-dot   { background: #22C55E; }
+.status-badge.inactive .status-dot { background: #EF4444; }
+
+/* ── Actions ── */
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  transition: all .15s;
+  cursor: pointer;
+  text-decoration: none;
+}
+.action-btn.edit {
+  color: #2563EB;
+  background: #EFF6FF;
+  border-color: #BFDBFE;
+}
+.action-btn.edit:hover   { background: #DBEAFE; color: #1D4ED8; }
+.action-btn.toggle-active {
+  color: #D97706;
+  background: #FFFBEB;
+  border-color: #FDE68A;
+}
+.action-btn.toggle-active:hover { background: #FEF3C7; }
+.action-btn.toggle-inactive {
+  color: #16A34A;
+  background: #DCFCE7;
+  border-color: #BBF7D0;
+}
+.action-btn.toggle-inactive:hover { background: #BBF7D0; }
+.action-btn.mail {
+  color: #7C3AED;
+  background: #F5F3FF;
+  border-color: #DDD6FE;
+}
+.action-btn.mail:hover { background: #EDE9FE; }
+.action-btn.del {
+  color: #DC2626;
+  background: #FEF2F2;
+  border-color: #FECACA;
+}
+.action-btn.del:hover { background: #FEE2E2; }
+
+/* ── Empty State ── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #94A3B8;
+}
+.empty-state .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+.empty-state p { font-size: 0.9rem; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .owners-table thead th:nth-child(2),
+  .owners-table td:nth-child(2) { display: none; }
+  .to-header { flex-direction: column; align-items: flex-start; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="to-header">
+  <div class="to-title">
+    <span style="font-size:1.5rem;">🏟️</span>
+    <h4>Theater Owners</h4>
+    <span class="badge-count">{{ rows|length }} total</span>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('theater_owners.brands') }}"
+       class="btn btn-outline-secondary btn-sm"
+       style="border-radius:9px;font-weight:600;border-color:#CBD5E1;">
+      <i class="bi bi-tags me-1"></i>Manage Brands
+    </a>
+    <a href="{{ url_for('theater_owners.create_theater_owner') }}"
+       class="btn btn-primary btn-sm"
+       style="border-radius:9px;font-weight:700;background:linear-gradient(135deg,#3B82F6,#6366F1);border:none;">
+      <i class="bi bi-plus-lg me-1"></i>Add Owner
+    </a>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<form method="GET" class="filter-bar">
+  <div class="row g-2 w-100 align-items-center">
+    <div class="col-12 col-md-5">
+      <div class="search-wrap">
+        <i class="bi bi-search"></i>
+        <input type="text" name="q" class="form-control"
+               placeholder="Search name or email…" value="{{ search }}">
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <select name="brand" class="form-select w-100">
+        <option value="">All Brands</option>
+        {% for b in brands %}
+        <option value="{{ b.id }}" {{ 'selected' if brand_f == b.id|string }}>
+          {{ b.brand_name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-2">
+      <select name="status" class="form-select w-100">
+        <option value="">All Status</option>
+        <option value="Active"   {{ 'selected' if status_f == 'Active' }}>Active</option>
+        <option value="Inactive" {{ 'selected' if status_f == 'Inactive' }}>Inactive</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-2">
+      <button type="submit" class="btn btn-primary btn-filter w-100">
+        <i class="bi bi-funnel me-1"></i>Filter
+      </button>
+    </div>
+    {% if search or brand_f or status_f %}
+    <div class="col-6 col-md-1">
+      <a href="{{ url_for('theater_owners.theater_owners') }}"
+         class="btn btn-outline-secondary btn-filter w-100">Clear</a>
+    </div>
+    {% endif %}
+  </div>
+</form>
+
+<!-- Owners Table -->
+<div class="owners-card">
+  {% if rows %}
+  <table class="owners-table">
+    <thead>
+      <tr>
+        <th style="width:40px;">#</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Brand / Theaters</th>
+        <th>Status</th>
+        <th style="text-align:right;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for owner, brand_name, theater_count in rows %}
+      <tr>
+        <!-- # -->
+        <td style="color:#94A3B8;font-size:0.82rem;font-weight:600;">
+          {{ loop.index }}
+        </td>
+
+        <!-- Name -->
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <div class="owner-avatar">
+              {{ owner.name[0].upper() }}
+            </div>
+            <div>
+              <div class="owner-name">{{ owner.name }}</div>
+              <div class="owner-email d-md-none">{{ owner.email }}</div>
+            </div>
+          </div>
+        </td>
+
+        <!-- Email -->
+        <td class="d-none d-md-table-cell">
+          <span class="owner-email">{{ owner.email }}</span>
+        </td>
+
+        <!-- Brand / Theaters -->
+        <td>
+          {% if brand_name %}
+          <div class="brand-cell">
+            <div class="brand-logo-wrap">🎭</div>
+            <div class="brand-info">
+              <span class="brand-name-text">{{ brand_name }}</span>
+              <span class="theater-count-badge"><i class="bi bi-building" style="font-size:.65rem;"></i> {{ theater_count }} theater{{ 's' if theater_count != 1 }}</span>
+            </div>
+          </div>
+          {% else %}
+          <span style="color:#CBD5E1;font-size:0.82rem;font-style:italic;">No brand assigned</span>
+          {% endif %}
+        </td>
+
+        <!-- Status -->
+        <td>
+          {% if owner.status == 'Active' %}
+          <span class="status-badge active">
+            <span class="status-dot"></span>Active
+          </span>
+          {% else %}
+          <span class="status-badge inactive">
+            <span class="status-dot"></span>Inactive
+          </span>
+          {% endif %}
+        </td>
+
+        <!-- Actions -->
+        <td>
+          <div class="d-flex gap-1 justify-content-end">
+
+            <!-- Edit -->
+            <a href="{{ url_for('theater_owners.edit_theater_owner', user_id=owner.user_id) }}"
+               class="action-btn edit" title="Edit Owner">
+              <i class="bi bi-pencil-fill"></i>
+            </a>
+
+            <!-- Toggle Active/Inactive -->
+            <form method="POST"
+                  action="{{ url_for('theater_owners.toggle_owner_status', user_id=owner.user_id) }}"
+                  style="display:inline;">
+              {% if owner.status == 'Active' %}
+              <button type="submit" class="action-btn toggle-active" title="Disable Owner">
+                <i class="bi bi-slash-circle"></i>
+              </button>
+              {% else %}
+              <button type="submit" class="action-btn toggle-inactive" title="Activate Owner">
+                <i class="bi bi-check-circle"></i>
+              </button>
+              {% endif %}
+            </form>
+
+            <!-- Send Credentials -->
+            <form method="POST"
+                  action="{{ url_for('theater_owners.send_owner_credentials', user_id=owner.user_id) }}"
+                  style="display:inline;">
+              <button type="submit" class="action-btn mail" title="Resend Credentials">
+                <i class="bi bi-send-fill"></i>
+              </button>
+            </form>
+
+            <!-- Delete -->
+            <form method="POST"
+                  action="{{ url_for('theater_owners.delete_theater_owner', user_id=owner.user_id) }}"
+                  style="display:inline;"
+                  onsubmit="return confirm('Delete {{ owner.name }}? Their theaters will be unassigned.');">
+              <button type="submit" class="action-btn del" title="Delete Owner">
+                <i class="bi bi-trash3-fill"></i>
+              </button>
+            </form>
+
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">🏟️</div>
+    <p class="fw-semibold" style="color:#475569;">No theater owners found</p>
+    <p>
+      {% if search or brand_f or status_f %}
+        Try adjusting your filters.
+        <a href="{{ url_for('theater_owners.theater_owners') }}">Clear filters</a>
+      {% else %}
+        <a href="{{ url_for('theater_owners.create_theater_owner') }}">Add your first owner</a>
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

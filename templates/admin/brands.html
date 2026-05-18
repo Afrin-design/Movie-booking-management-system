@@ -1,0 +1,272 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Brands{% endblock %}
+{% block page_title %}Theater Brands{% endblock %}
+
+{% block head %}
+<style>
+.brands-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.brands-title {
+  display: flex; align-items: center; gap: 10px;
+}
+.brands-title h4 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700; font-size: 1.3rem;
+  margin: 0; color: #1a202c;
+}
+.badge-count {
+  background: #EFF6FF; color: #2563EB;
+  border: 1px solid #BFDBFE;
+  border-radius: 20px; font-size: 0.78rem;
+  font-weight: 600; padding: 2px 10px;
+}
+
+/* Grid of brand cards */
+.brand-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.brand-card {
+  background: #fff;
+  border: 1px solid #E8EDF2;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow .15s;
+}
+.brand-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.09); }
+.brand-card-top { display: flex; align-items: center; gap: 14px; }
+.brand-logo {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: linear-gradient(135deg, #DBEAFE, #EDE9FE);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; flex-shrink: 0;
+}
+.brand-name { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1rem; color: #1a202c; }
+.brand-theater-count { font-size: 0.8rem; color: #64748B; margin-top: 1px; }
+
+.stat-row {
+  display: flex; gap: 12px;
+}
+.stat-chip {
+  background: #F8FAFC;
+  border: 1px solid #E8EDF2;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  flex: 1;
+  text-align: center;
+}
+.stat-chip .val { font-weight: 700; font-size: 1rem; color: #1a202c; display: block; }
+.stat-chip .lbl { color: #94A3B8; }
+
+.status-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  border-radius: 20px; font-size: 0.74rem; font-weight: 600;
+  padding: 3px 9px;
+}
+.status-badge.active   { background:#DCFCE7; color:#15803D; border:1px solid #BBF7D0; }
+.status-badge.inactive { background:#FEF2F2; color:#B91C1C; border:1px solid #FECACA; }
+
+.brand-actions { display: flex; gap: 6px; margin-top: 4px; }
+.brand-btn {
+  flex: 1; border-radius: 9px; font-size: 0.8rem;
+  font-weight: 600; padding: 6px 0;
+  border: 1.5px solid; cursor: pointer;
+  transition: all .15s; text-align: center;
+}
+.brand-btn.edit-btn   { background:#EFF6FF; color:#2563EB; border-color:#BFDBFE; }
+.brand-btn.edit-btn:hover { background:#DBEAFE; }
+.brand-btn.del-btn    { background:#FEF2F2; color:#DC2626; border-color:#FECACA; }
+.brand-btn.del-btn:hover  { background:#FEE2E2; }
+
+/* Add Brand form */
+.add-brand-card {
+  background: #fff;
+  border: 1px solid #E8EDF2;
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  max-width: 500px;
+}
+.add-brand-card h6 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700; font-size: 1rem;
+  margin-bottom: 16px;
+}
+.form-control {
+  border-radius: 9px; border: 1.5px solid #E2E8F0;
+  font-size: 0.88rem; background: #F8FAFC;
+}
+.form-control:focus { border-color:#3B82F6; box-shadow:0 0 0 3px rgba(59,130,246,.12); background:#fff; }
+
+/* Edit modal */
+.modal-content { border-radius: 16px; border: none; }
+.modal-header { border-bottom: 1px solid #F1F5F9; padding: 18px 22px; }
+.modal-body   { padding: 20px 22px; }
+.modal-footer { border-top: 1px solid #F1F5F9; padding: 14px 22px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="brands-header">
+  <div class="brands-title">
+    <span style="font-size:1.5rem;">🏷️</span>
+    <h4>Theater Brands</h4>
+    <span class="badge-count">{{ brands|length }} brands</span>
+  </div>
+  <a href="{{ url_for('theater_owners.theater_owners') }}"
+     class="btn btn-outline-secondary btn-sm" style="border-radius:9px;font-weight:600;">
+    ← Theater Owners
+  </a>
+</div>
+
+<!-- Brand Cards Grid -->
+{% if brands %}
+<div class="brand-grid">
+  {% for brand, theater_count in brands %}
+  <div class="brand-card">
+    <div class="brand-card-top">
+      <div class="brand-logo">🎭</div>
+      <div>
+        <div class="brand-name">{{ brand.brand_name }}</div>
+        <div class="brand-theater-count">
+          <i class="bi bi-building me-1"></i>{{ theater_count }} theater{{ 's' if theater_count != 1 }}
+        </div>
+      </div>
+      <div class="ms-auto">
+        {% if brand.status == 'Active' %}
+        <span class="status-badge active">● Active</span>
+        {% else %}
+        <span class="status-badge inactive">● Inactive</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-chip">
+        <span class="val">{{ theater_count }}</span>
+        <span class="lbl">Theaters</span>
+      </div>
+      <div class="stat-chip">
+        <span class="val">{{ brand.owners|length }}</span>
+        <span class="lbl">Owner{{ 's' if brand.owners|length != 1 }}</span>
+      </div>
+    </div>
+
+    {% if brand.owners %}
+    <div style="font-size:0.78rem;color:#64748B;">
+      <i class="bi bi-person-fill me-1" style="color:#94A3B8;"></i>
+      Managed by: <strong style="color:#374151;">{{ brand.owners[0].name }}</strong>
+    </div>
+    {% else %}
+    <div style="font-size:0.78rem;color:#CBD5E1;font-style:italic;">
+      <i class="bi bi-person me-1"></i>No owner assigned
+    </div>
+    {% endif %}
+
+    <div class="brand-actions">
+      <button class="brand-btn edit-btn"
+              onclick="openEditModal({{ brand.id }}, '{{ brand.brand_name }}', '{{ brand.status }}')">
+        <i class="bi bi-pencil-fill me-1"></i>Edit
+      </button>
+      <form method="POST"
+            action="{{ url_for('theater_owners.delete_brand', brand_id=brand.id) }}"
+            style="flex:1;"
+            onsubmit="return confirm('Delete brand {{ brand.brand_name }}? This cannot be undone.');">
+        <button type="submit" class="brand-btn del-btn w-100"
+                {{ 'disabled title=Cannot delete — has theaters' if theater_count > 0 }}>
+          <i class="bi bi-trash3-fill me-1"></i>Delete
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div style="text-align:center;padding:60px 20px;color:#94A3B8;">
+  <div style="font-size:3rem;margin-bottom:12px;">🏷️</div>
+  <p class="fw-semibold" style="color:#475569;">No brands yet</p>
+  <p style="font-size:.9rem;">Add your first brand below.</p>
+</div>
+{% endif %}
+
+<!-- Add Brand Form -->
+<div class="add-brand-card">
+  <h6>➕ Add New Brand</h6>
+  <form method="POST" action="{{ url_for('theater_owners.add_brand') }}">
+    <div class="d-flex gap-2">
+      <input type="text" name="brand_name" class="form-control"
+             placeholder="e.g. PVR, INOX, Carnival…" required>
+      <button type="submit" class="btn btn-primary"
+              style="border-radius:9px;font-weight:700;white-space:nowrap;
+                     background:linear-gradient(135deg,#3B82F6,#6366F1);border:none;">
+        Add Brand
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Edit Brand Modal -->
+<div class="modal fade" id="editBrandModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title fw-bold" style="font-family:'Poppins',sans-serif;">
+          ✏️ Edit Brand
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="editBrandForm" method="POST">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold" style="font-size:.85rem;">Brand Name</label>
+            <input type="text" name="brand_name" id="editBrandName"
+                   class="form-control" required>
+          </div>
+          <div class="mb-1">
+            <label class="form-label fw-semibold" style="font-size:.85rem;">Status</label>
+            <select name="status" id="editBrandStatus" class="form-select"
+                    style="border-radius:9px;border:1.5px solid #E2E8F0;background:#F8FAFC;">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary"
+                  data-bs-dismiss="modal" style="border-radius:9px;">Cancel</button>
+          <button type="submit" class="btn btn-primary"
+                  style="border-radius:9px;font-weight:700;
+                         background:linear-gradient(135deg,#3B82F6,#6366F1);border:none;">
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function openEditModal(brandId, brandName, brandStatus) {
+  document.getElementById('editBrandForm').action =
+    '/admin/brands/' + brandId + '/edit';
+  document.getElementById('editBrandName').value = brandName;
+  document.getElementById('editBrandStatus').value = brandStatus;
+  new bootstrap.Modal(document.getElementById('editBrandModal')).show();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,297 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Theaters{% endblock %}
+{% block page_title %}🏟️ Theaters{% endblock %}
+
+{% block head %}
+<style>
+/* ── Theaters table ───────────────────────────────────────────────────────── */
+.th-table-wrap {
+  background: var(--adm-surface);
+  border: 1px solid var(--adm-border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.th-table { width:100%; border-collapse:collapse; }
+
+/* Header */
+.th-table thead tr {
+  background: var(--adm-bg);
+  border-bottom: 1.5px solid var(--adm-border);
+}
+.th-table thead th {
+  padding: 10px 14px;
+  font-size: .66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--adm-text-3);
+  white-space: nowrap;
+  border: none;
+  vertical-align: middle;
+}
+.th-table thead th:first-child { padding-left:20px; }
+.th-table thead th:last-child  { padding-right:20px; text-align:right; }
+
+/* Body */
+.th-table tbody tr {
+  border-bottom: 1px solid var(--adm-border);
+  transition: background .12s;
+}
+.th-table tbody tr:last-child { border-bottom:none; }
+.th-table tbody tr:hover { background:rgba(59,130,246,.03); }
+.th-table tbody td {
+  padding: 8px 14px;
+  vertical-align: middle;
+  border: none;
+  font-size: .81rem;
+  color: var(--adm-text);
+}
+.th-table tbody td:first-child { padding-left:20px; }
+.th-table tbody td:last-child  { padding-right:20px; }
+
+/* Row number */
+.td-num { font-size:.7rem; color:var(--adm-text-3); font-weight:600; width:36px; }
+
+/* Theater name */
+.theater-name-cell { display:flex; align-items:center; gap:8px; min-width:130px; }
+.th-icon {
+  width:28px; height:28px; border-radius:7px; flex-shrink:0;
+  background:rgba(59,130,246,.1); border:1px solid rgba(59,130,246,.18);
+  display:flex; align-items:center; justify-content:center; font-size:.82rem;
+}
+.theater-name { font-weight:600; font-size:.81rem; color:var(--adm-text); }
+
+/* Location */
+.td-location { font-size:.77rem; color:var(--adm-text-2); min-width:90px; }
+
+/* City badge */
+.city-badge {
+  display:inline-flex; align-items:center; gap:3px;
+  background:#F1F5F9; border:1px solid #E2E8F0; color:#374151;
+  padding:2px 8px; border-radius:20px;
+  font-size:.7rem; font-weight:600; white-space:nowrap;
+}
+
+/* Code badge */
+.code-badge {
+  font-family:'SFMono-Regular',Consolas,monospace;
+  background:#F8FAFC; border:1px solid #E2E8F0; color:#475569;
+  padding:2px 8px; border-radius:6px;
+  font-size:.7rem; font-weight:700; letter-spacing:.4px; white-space:nowrap;
+}
+
+/* Status badge */
+.status-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:2px 9px; border-radius:20px;
+  font-size:.69rem; font-weight:700; white-space:nowrap;
+}
+.s-active      { background:#ECFDF5; border:1px solid #A7F3D0; color:#065F46; }
+.s-maintenance { background:#FFFBEB; border:1px solid #FDE68A; color:#92400E; }
+.s-inactive    { background:#FEF2F2; border:1px solid #FECACA; color:#991B1B; }
+.s-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.dot-a { background:#10B981; }
+.dot-m { background:#F59E0B; }
+.dot-i { background:#EF4444; }
+
+/* Action buttons */
+.action-cell { display:flex; align-items:center; justify-content:flex-end; gap:4px; }
+.btn-act {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:4px 9px; border-radius:6px;
+  font-size:.7rem; font-weight:600; border:1px solid;
+  cursor:pointer; text-decoration:none; white-space:nowrap;
+  line-height:1.4; background:transparent; transition:all .12s;
+}
+.btn-act-edit  { color:#2563EB; border-color:#BFDBFE; background:#EFF6FF; }
+.btn-act-edit:hover  { background:#DBEAFE; border-color:#93C5FD; color:#1D4ED8; }
+.btn-act-del   { color:#DC2626; border-color:#FECACA; background:#FEF2F2; }
+.btn-act-del:hover   { background:#FEE2E2; border-color:#FCA5A5; color:#B91C1C; }
+
+/* Toolbar */
+.theaters-toolbar {
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:10px; margin-bottom:14px;
+}
+.toolbar-title { font-family:'Poppins',sans-serif; font-weight:700; font-size:.98rem; margin:0 0 1px; }
+.toolbar-sub   { font-size:.72rem; color:var(--adm-text-3); margin:0; }
+.toolbar-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.city-select {
+  height:31px; padding:0 10px;
+  border:1.5px solid var(--adm-border); border-radius:8px;
+  font-size:.77rem; background:var(--adm-surface); color:var(--adm-text);
+  min-width:138px; outline:none; cursor:pointer;
+}
+.city-select:focus { border-color:var(--adm-blue); }
+.btn-add {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:5px 13px; border-radius:8px; font-size:.77rem; font-weight:700;
+  background:var(--adm-blue); color:#fff; text-decoration:none;
+  border:none; transition:background .13s; white-space:nowrap; line-height:1.5;
+}
+.btn-add:hover { background:var(--adm-blue-d); color:#fff; }
+
+/* Empty */
+.empty-row td { padding:44px 20px !important; text-align:center; color:var(--adm-text-3); }
+
+/* Pagination */
+.pag-wrap {
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:8px; margin-top:12px;
+}
+.pag-info { font-size:.73rem; color:var(--adm-text-3); }
+.pag-info strong { color:var(--adm-text-2); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Toolbar -->
+<div class="theaters-toolbar">
+  <div>
+    <p class="toolbar-title">🏟️ All Theaters</p>
+    <p class="toolbar-sub">{{ pagination.total }} theater{{ 's' if pagination.total != 1 }} found</p>
+  </div>
+  <div class="toolbar-right">
+    <form method="GET" style="margin:0;">
+      <select name="city" class="city-select" onchange="this.form.submit()">
+        <option value="">All Cities</option>
+        {% for c in all_cities %}
+        <option value="{{ c }}" {{ 'selected' if c == selected_city }}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <a href="{{ url_for('admin.add_theater') }}" class="btn-add">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Theater
+    </a>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="th-table-wrap">
+  <div class="table-responsive">
+    <table class="th-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Theater Name</th>
+          <th>Location</th>
+          <th>City / State</th>
+          <th>Theater Code</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in theaters %}
+        {% set st = t.status or 'Active' %}
+        <tr>
+
+          <!-- # -->
+          <td class="td-num">{{ (pagination.page - 1) * pagination.per_page + loop.index }}</td>
+
+          <!-- Theater Name -->
+          <td>
+            <div class="theater-name-cell">
+              <div class="th-icon">🏟️</div>
+              <span class="theater-name">{{ t.name }}</span>
+            </div>
+          </td>
+
+          <!-- Location -->
+          <td class="td-location">{{ t.location or '—' }}</td>
+
+          <!-- City / State -->
+          <td>
+            <span class="city-badge">
+              <svg width="8" height="10" viewBox="0 0 24 24" fill="currentColor" style="opacity:.55;flex-shrink:0;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/></svg>
+              {{ t.city }}{% if t.state %}, {{ t.state }}{% endif %}
+            </span>
+          </td>
+
+          <!-- Theater Code -->
+          <td><span class="code-badge">{{ t.theater_id }}</span></td>
+
+          <!-- Status -->
+          <td>
+            {% if st == 'Active' %}
+              <span class="status-badge s-active"><span class="s-dot dot-a"></span>Active</span>
+            {% elif st == 'Maintenance' %}
+              <span class="status-badge s-maintenance"><span class="s-dot dot-m"></span>Maintenance</span>
+            {% else %}
+              <span class="status-badge s-inactive"><span class="s-dot dot-i"></span>Inactive</span>
+            {% endif %}
+          </td>
+
+          <!-- Actions -->
+          <td>
+            <div class="action-cell">
+              <a href="{{ url_for('admin.edit_theater', theater_id=t.theater_id) }}" class="btn-act btn-act-edit">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+              </a>
+              <form method="POST" action="{{ url_for('admin.delete_theater', theater_id=t.theater_id) }}"
+                    style="margin:0;" onsubmit="return confirm('Delete {{ t.name }}? This removes all screens, shows, and bookings.')">
+                <button type="submit" class="btn-act btn-act-del">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  Delete
+                </button>
+              </form>
+            </div>
+          </td>
+
+        </tr>
+        {% else %}
+        <tr class="empty-row">
+          <td colspan="7">
+            <div style="font-size:1.8rem;margin-bottom:7px;">🏟️</div>
+            <div style="font-size:.82rem;margin-bottom:6px;">No theaters found</div>
+            <a href="{{ url_for('admin.add_theater') }}" style="font-size:.76rem;color:var(--adm-blue);text-decoration:none;font-weight:600;">
+              + Add your first theater →
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<div class="pag-wrap">
+  <div class="pag-info">
+    Showing
+    <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}–{{ [pagination.page * pagination.per_page, pagination.total] | min }}</strong>
+    of <strong>{{ pagination.total }}</strong> theaters
+  </div>
+  <nav>
+    <ul class="pagination pagination-sm mb-0" style="gap:3px;">
+      <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+        <a class="page-link" href="{{ url_for('admin.theaters', page=pagination.prev_num, city=selected_city) }}"
+           style="border-radius:6px;font-size:.73rem;padding:4px 9px;">&laquo;</a>
+      </li>
+      {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}
+          <li class="page-item {{ 'active' if p == pagination.page }}">
+            <a class="page-link" href="{{ url_for('admin.theaters', page=p, city=selected_city) }}"
+               style="border-radius:6px;font-size:.73rem;padding:4px 9px;">{{ p }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled">
+            <span class="page-link" style="border-radius:6px;font-size:.73rem;padding:4px 9px;">…</span>
+          </li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+        <a class="page-link" href="{{ url_for('admin.theaters', page=pagination.next_num, city=selected_city) }}"
+           style="border-radius:6px;font-size:.73rem;padding:4px 9px;">&raquo;</a>
+      </li>
+    </ul>
+  </nav>
+</div>
+{% endif %}
+
+{% endblock %}

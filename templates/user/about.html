@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+{% block title %}About CineHub — Your Cinema Experience{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{font-family:"Inter",sans-serif!important;}
+h1,h2,h3,h4,h5,.hero-title,.display-1,.display-2,.section-title{font-family:"Poppins",sans-serif!important;font-weight:900!important;letter-spacing:.5px;}
+</style>
+<style>
+/* ── About Page Styles ────────────────────────────────────── */
+.about-hero {
+  position: relative; overflow: hidden;
+  background: linear-gradient(135deg, #070B14 0%, #0D1425 40%, #111A33 100%);
+  padding: 90px 0 80px; text-align: center;
+}
+.about-hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(59,130,246,.18), transparent),
+              radial-gradient(ellipse 50% 50% at 80% 100%, rgba(245,158,11,.1), transparent);
+  pointer-events: none;
+}
+/* Floating film-strip lines */
+.about-hero::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    linear-gradient(rgba(59,130,246,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+}
+.about-hero-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.3);
+  color: #93C5FD; font-size: .72rem; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 6px 16px; border-radius: 20px; margin-bottom: 20px;
+}
+.about-hero h1 {
+  font-family: 'Poppins', sans-serif; font-size: clamp(2.2rem, 5vw, 3.8rem);
+  font-weight: 900; color: #fff; line-height: 1.1;
+  letter-spacing: -1px; margin-bottom: 20px;
+}
+.about-hero h1 span { color: #3B82F6; }
+.about-hero p {
+  color: rgba(200,215,255,.6); font-size: 1.05rem;
+  max-width: 580px; margin: 0 auto 36px; line-height: 1.7;
+}
+.hero-cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+/* ── Stats Banner ─────────────────────────────────────────── */
+.stats-band {
+  background: rgba(15,24,41,.9); border-top: 1px solid rgba(59,130,246,.15);
+  border-bottom: 1px solid rgba(59,130,246,.15); padding: 36px 0;
+}
+.stat-pill { text-align: center; }
+.stat-pill .sp-num {
+  font-family: 'Poppins', sans-serif; font-size: 2.4rem; font-weight: 900;
+  background: linear-gradient(135deg, #3B82F6, #06B6D4);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; line-height: 1;
+}
+.stat-pill .sp-lbl { font-size: .82rem; color: rgba(200,215,255,.5); font-weight: 600; margin-top: 4px; }
+
+/* ── Mission section ──────────────────────────────────────── */
+.mission-card {
+  background: rgba(15,24,41,.85); border: 1px solid rgba(59,130,246,.15);
+  border-radius: 20px; padding: 2.5rem; position: relative; overflow: hidden;
+}
+.mission-card::before {
+  content: ''; position: absolute; top: -40px; right: -40px;
+  width: 180px; height: 180px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(59,130,246,.12), transparent);
+}
+
+/* ── Feature cards ────────────────────────────────────────── */
+.feat-card {
+  background: rgba(15,24,41,.7); border: 1px solid rgba(59,130,246,.12);
+  border-radius: 16px; padding: 1.8rem; transition: all .3s;
+  height: 100%;
+}
+.feat-card:hover {
+  border-color: rgba(59,130,246,.35); transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(59,130,246,.15);
+}
+.feat-icon {
+  width: 56px; height: 56px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; margin-bottom: 16px;
+}
+.feat-title { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1rem; color: #F0F4FF; margin-bottom: 8px; }
+.feat-desc  { color: rgba(200,215,255,.5); font-size: .86rem; line-height: 1.6; }
+
+/* ── Timeline ─────────────────────────────────────────────── */
+.timeline { position: relative; padding-left: 40px; }
+.timeline::before {
+  content: ''; position: absolute; left: 18px; top: 0; bottom: 0;
+  width: 2px; background: linear-gradient(180deg, #3B82F6, rgba(59,130,246,.1));
+}
+.tl-item { position: relative; margin-bottom: 2rem; }
+.tl-dot {
+  position: absolute; left: -31px; top: 4px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #3B82F6; border: 2px solid #070B14;
+  box-shadow: 0 0 12px rgba(59,130,246,.5);
+}
+.tl-year { font-family: 'Poppins', sans-serif; font-size: .75rem; font-weight: 800; color: #3B82F6; letter-spacing: 1px; margin-bottom: 4px; }
+.tl-text { font-size: .88rem; color: rgba(200,215,255,.6); line-height: 1.5; }
+.tl-head { font-weight: 700; color: #F0F4FF; margin-bottom: 3px; }
+
+/* ── Team cards ───────────────────────────────────────────── */
+.team-card {
+  background: rgba(15,24,41,.7); border: 1px solid rgba(59,130,246,.12);
+  border-radius: 18px; padding: 2rem 1.5rem; text-align: center;
+  transition: all .3s;
+}
+.team-card:hover { border-color: rgba(59,130,246,.3); transform: translateY(-4px); }
+.team-avatar {
+  width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; font-weight: 800; font-family: 'Poppins', sans-serif;
+  border: 3px solid rgba(59,130,246,.3);
+}
+.team-name { font-family: 'Poppins', sans-serif; font-weight: 700; color: #F0F4FF; margin-bottom: 4px; }
+.team-role { font-size: .78rem; color: #3B82F6; font-weight: 600; margin-bottom: 8px; }
+.team-bio  { font-size: .82rem; color: rgba(200,215,255,.45); line-height: 1.5; }
+
+/* ── Experience section ───────────────────────────────────── */
+.exp-strip {
+  background: linear-gradient(135deg, #0D1425 0%, #111A33 100%);
+  border-top: 1px solid rgba(59,130,246,.12);
+  border-bottom: 1px solid rgba(59,130,246,.12);
+  padding: 60px 0;
+}
+.exp-item {
+  display: flex; align-items: flex-start; gap: 16px;
+  padding: 20px; border-radius: 14px;
+  border: 1px solid rgba(59,130,246,.1);
+  background: rgba(59,130,246,.04);
+  transition: all .25s; height: 100%;
+}
+.exp-item:hover { border-color: rgba(59,130,246,.25); background: rgba(59,130,246,.08); }
+.exp-emoji { font-size: 2rem; flex-shrink: 0; }
+.exp-head { font-family: 'Poppins', sans-serif; font-weight: 700; color: #F0F4FF; margin-bottom: 5px; }
+.exp-body { font-size: .84rem; color: rgba(200,215,255,.5); line-height: 1.55; }
+
+/* ── CTA Banner ───────────────────────────────────────────── */
+.cta-banner {
+  background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 50%, #06B6D4 100%);
+  border-radius: 24px; padding: 56px 40px; text-align: center;
+  position: relative; overflow: hidden;
+  box-shadow: 0 30px 80px rgba(59,130,246,.4);
+}
+.cta-banner::before {
+  content: '🎬'; position: absolute; font-size: 8rem; opacity: .06;
+  top: -20px; right: -20px; transform: rotate(-15deg); pointer-events: none;
+}
+.cta-banner h3 { font-family: 'Poppins', sans-serif; font-weight: 900; font-size: 2rem; color: #fff; margin-bottom: 12px; }
+.cta-banner p  { color: rgba(255,255,255,.75); max-width: 480px; margin: 0 auto 28px; }
+
+/* ── Section labels ───────────────────────────────────────── */
+.sec-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.2);
+  color: #93C5FD; font-size: .7rem; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 5px 14px; border-radius: 20px; margin-bottom: 14px;
+}
+.sec-heading {
+  font-family: 'Poppins', sans-serif; font-weight: 800;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  color: #F0F4FF; line-height: 1.2; margin-bottom: 14px;
+}
+.sec-sub { color: rgba(200,215,255,.5); font-size: .95rem; line-height: 1.65; max-width: 600px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══ HERO ═══════════════════════════════════════════════════ -->
+<section class="about-hero">
+  <div class="container position-relative" style="z-index:2;">
+    <div class="about-hero-tag">🎬 Est. 2024 · India's Cinema Platform</div>
+    <h1>Cinema Is Not<br>Just a Movie —<br>It's an <span>Experience</span></h1>
+    <p>CineHub brings the magic of the big screen to your fingertips. Book tickets, explore trailers, and never miss a blockbuster moment.</p>
+    <div class="hero-cta-row">
+      <a href="{{ url_for('user.movies') }}" class="hbtn-book" style="font-family:'Poppins',sans-serif;font-weight:700;font-size:.95rem;padding:14px 32px;border-radius:12px;">
+        🎬 Explore Movies
+      </a>
+      <a href="{{ url_for('user.contact') }}" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);backdrop-filter:blur(10px);color:#fff;border:1.5px solid rgba(255,255,255,.2);padding:14px 28px;border-radius:12px;font-weight:700;font-size:.95rem;text-decoration:none;transition:all .25s;">
+        💬 Contact Us
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ STATS BAND ══════════════════════════════════════════════ -->
+<section class="stats-band">
+  <div class="container">
+    <div class="row g-4">
+      {% for num, lbl, icon in [
+        (stats.movies|string + '+', 'Movies Available', '🎥'),
+        (stats.theaters|string + '+', 'Partner Theaters', '🏟️'),
+        (stats.bookings|string + '+', 'Tickets Booked', '🎟️'),
+        (stats.users|string + '+', 'Happy Customers', '😊'),
+      ] %}
+      <div class="col-6 col-md-3">
+        <div class="stat-pill">
+          <div style="font-size:1.6rem;margin-bottom:4px;">{{ icon }}</div>
+          <div class="sp-num">{{ num }}</div>
+          <div class="sp-lbl">{{ lbl }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ═══ MISSION ════════════════════════════════════════════════ -->
+<section class="container-xl py-6" style="padding-top:72px;padding-bottom:72px;">
+  <div class="row g-5 align-items-center">
+    <div class="col-lg-5">
+      <div class="sec-eyebrow">🎯 Our Mission</div>
+      <h2 class="sec-heading">Making Cinema<br>Accessible to Everyone</h2>
+      <p class="sec-sub mb-4">We believe every great story deserves to be seen on the big screen. CineHub was built with a single purpose: to remove the friction between you and your next cinematic adventure.</p>
+      <p class="sec-sub">From blockbuster action films to indie dramas, from Hollywood to Bollywood — we curate the best of world cinema for audiences across India.</p>
+    </div>
+    <div class="col-lg-7">
+      <div class="row g-3">
+        {% for icon, bg, title, desc in [
+          ('🎬', 'rgba(59,130,246,.15)', 'Curated Content', 'Every movie on CineHub is reviewed and catalogued with accurate details, trailers, and ratings.'),
+          ('🪑', 'rgba(16,185,129,.15)', 'Seat-Level Booking', 'Pick exactly where you sit — aisle, middle, premium VIP — the choice is yours.'),
+          ('⚡', 'rgba(245,158,11,.15)', 'Instant Confirmation', 'Booking confirmed in seconds. E-ticket delivered instantly, no printing needed.'),
+          ('🔒', 'rgba(139,92,246,.15)', 'Safe & Secure', 'Military-grade encryption on all payments. Your data and money are always protected.'),
+          ('🏟️', 'rgba(6,182,212,.15)', 'Premium Theaters', 'Partner with top multiplex chains and independent cinemas across 50+ cities.'),
+          ('📱', 'rgba(239,68,68,.15)', 'Any Device', 'Book on mobile, tablet, or desktop. Your tickets sync automatically everywhere.'),
+        ] %}
+        <div class="col-md-4">
+          <div class="feat-card">
+            <div class="feat-icon" style="background:{{ bg }};">{{ icon }}</div>
+            <div class="feat-title">{{ title }}</div>
+            <div class="feat-desc">{{ desc }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CINEMA EXPERIENCE ══════════════════════════════════════ -->
+<section class="exp-strip">
+  <div class="container-xl">
+    <div class="text-center mb-5">
+      <div class="sec-eyebrow">🍿 The Experience</div>
+      <h2 class="sec-heading">More Than Just a Ticket</h2>
+      <p class="sec-sub mx-auto">We obsess over every detail of your cinema journey — from discovery to the closing credits.</p>
+    </div>
+    <div class="row g-3">
+      {% for emoji, head, body in [
+        ('🎭', 'Browse by Mood', 'Feeling action-packed? Want a good cry? Filter by genre, rating, language, and vibe. Let us help you find tonight\'s perfect film.'),
+        ('🎞️', 'Watch Trailers', 'Never book blind. Stream HD trailers right inside CineHub before you commit to any movie.'),
+        ('🗓️', 'Plan Ahead', 'Upcoming releases listed weeks in advance. Set reminders so you never miss opening weekend of a film you\'re excited about.'),
+        ('💺', 'Your Seat, Your Choice', 'Our real-time seat map shows available seats, VIP options, and pricing tiers — down to the individual seat number.'),
+        ('🏆', 'Rewards Coming Soon', 'Earn CineCoins every booking. Redeem for discounts, free upgrades, and exclusive early-access screenings.'),
+        ('🌆', 'Explore Theaters', 'Discover cinemas near you — IMAX, Dolby, 4DX — and read verified user reviews for each venue.'),
+        ('📊', 'Smart Recommendations', 'Our algorithm learns what you love and suggests movies tailored to your taste after every booking.'),
+        ('🤝', 'Theater Partnerships', 'We work hand-in-hand with theater owners to keep show schedules accurate and seat inventory real-time.'),
+      ] %}
+      <div class="col-md-6 col-lg-3">
+        <div class="exp-item">
+          <div class="exp-emoji">{{ emoji }}</div>
+          <div>
+            <div class="exp-head">{{ head }}</div>
+            <div class="exp-body">{{ body }}</div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ═══ OUR STORY / TIMELINE ═══════════════════════════════════ -->
+<section class="container-xl" style="padding-top:72px;padding-bottom:72px;">
+  <div class="row g-5 align-items-start">
+    <div class="col-lg-5">
+      <div class="sec-eyebrow">📖 Our Story</div>
+      <h2 class="sec-heading">Built by Film<br>Lovers, for Film Lovers</h2>
+      <p class="sec-sub mb-4">CineHub started as a college project with a simple observation: booking a movie should be as exciting as watching one. Every clunky interface we fixed, every feature we added — driven by passion for cinema.</p>
+      <a href="{{ url_for('user.movies') }}" class="hbtn-book d-inline-flex" style="font-family:'Poppins',sans-serif;font-weight:700;font-size:.9rem;padding:12px 28px;border-radius:10px;text-decoration:none;">
+        🎬 Start Exploring
+      </a>
+    </div>
+    <div class="col-lg-7">
+      <div class="timeline ps-5">
+        {% for yr, head, text in [
+          ('2022', 'The Idea Sparks', 'Frustrated with slow ticket booking apps, a group of students decided to build something better — faster, cleaner, smarter.'),
+          ('2023 Q1', 'First Version Launched', 'CineHub v1 went live with 5 theaters and 20 movies. 100 users booked on day one.'),
+          ('2023 Q3', 'Theater Owner Panel', 'We built a full self-service portal for theater owners to manage shows, screens, and bookings independently.'),
+          ('2024 Q1', 'Analytics Dashboard', 'Both admins and theater owners got powerful analytics — revenue charts, audience insights, and seat utilization reports.'),
+          ('2024 Q2', 'Dark Cinematic UI', 'Completely redesigned with a movie-night-inspired dark theme. The interface now feels as immersive as the cinema itself.'),
+          ('Future', 'What\'s Next', 'Mobile app, CineCoins loyalty program, IMAX & Dolby filters, group bookings, and AI-powered recommendations.'),
+        ] %}
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-year">{{ yr }}</div>
+          <div class="tl-head">{{ head }}</div>
+          <div class="tl-text">{{ text }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ VALUES ════════════════════════════════════════════════ -->
+<section style="background:rgba(15,24,41,.6);border-top:1px solid rgba(59,130,246,.1);border-bottom:1px solid rgba(59,130,246,.1);padding:72px 0;">
+  <div class="container-xl">
+    <div class="text-center mb-5">
+      <div class="sec-eyebrow">💎 Our Values</div>
+      <h2 class="sec-heading">What We Stand For</h2>
+    </div>
+    <div class="row g-4">
+      {% for emoji, title, desc, color in [
+        ('🎯', 'User First', 'Every design decision, every feature — made by asking one question: does this make the user\'s life easier?', '#3B82F6'),
+        ('🔍', 'Transparency', 'No hidden fees. Seat prices shown upfront. Cancellation policies clearly stated. No surprises.', '#10B981'),
+        ('⚡', 'Speed', 'A booking should take under 60 seconds. We obsess over performance so you never wait.', '#F59E0B'),
+        ('🌱', 'Growth', 'We\'re constantly learning from feedback, improving features, and expanding to new cities and theaters.', '#8B5CF6'),
+      ] %}
+      <div class="col-md-6 col-lg-3">
+        <div style="text-align:center;padding:2rem 1.5rem;border:1px solid rgba(59,130,246,.1);border-radius:18px;background:rgba(15,24,41,.5);transition:all .3s;" onmouseover="this.style.borderColor='{{ color }}44';this.style.transform='translateY(-4px)';" onmouseout="this.style.borderColor='rgba(59,130,246,.1)';this.style.transform='none';">
+          <div style="font-size:2.5rem;margin-bottom:14px;">{{ emoji }}</div>
+          <div style="font-family:'Poppins',sans-serif;font-weight:700;color:#F0F4FF;font-size:1rem;margin-bottom:8px;">{{ title }}</div>
+          <div style="font-size:.84rem;color:rgba(200,215,255,.5);line-height:1.6;">{{ desc }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ═══ TEAM ══════════════════════════════════════════════════ -->
+<section class="container-xl" style="padding-top:72px;padding-bottom:72px;">
+  <div class="text-center mb-5">
+    <div class="sec-eyebrow">👥 The Team</div>
+    <h2 class="sec-heading">People Behind CineHub</h2>
+    <p class="sec-sub mx-auto">A passionate team of developers, designers, and cinema enthusiasts building the future of movie booking.</p>
+  </div>
+  <div class="row g-4 justify-content-center">
+    {% for init, name, role, bio, bg in [
+      ('A', 'Afrin', 'Lead Developer', 'Full-stack architect behind CineHub\'s core engine. Flask enthusiast and avid sci-fi fan.', 'linear-gradient(135deg,#3B82F6,#1D4ED8)'),
+      ('M', 'Mitra', 'UI / UX Designer', 'Crafted the cinematic dark theme and every pixel of the user interface with obsessive detail.', 'linear-gradient(135deg,#8B5CF6,#7C3AED)'),
+      ('Z', 'Team', 'Product & QA', 'Ensures every feature works flawlessly across devices and edge cases before it ships.', 'linear-gradient(135deg,#10B981,#059669)'),
+    ] %}
+    <div class="col-md-4 col-lg-3">
+      <div class="team-card">
+        <div class="team-avatar" style="background:{{ bg }};color:#fff;">{{ init }}</div>
+        <div class="team-name">{{ name }}</div>
+        <div class="team-role">{{ role }}</div>
+        <div class="team-bio">{{ bio }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- ═══ CTA BANNER ════════════════════════════════════════════ -->
+<section class="container-xl pb-5 mb-4">
+  <div class="cta-banner">
+    <h3>Ready for Your Next<br>Cinema Night? 🍿</h3>
+    <p>Join thousands of movie lovers who book smarter with CineHub. Your seat is waiting.</p>
+    <div class="d-flex gap-3 justify-content-center flex-wrap">
+      <a href="{{ url_for('user.movies') }}" style="display:inline-flex;align-items:center;gap:8px;background:#fff;color:#1D4ED8;font-family:'Poppins',sans-serif;font-weight:800;padding:14px 32px;border-radius:12px;text-decoration:none;font-size:.95rem;box-shadow:0 6px 24px rgba(0,0,0,.2);transition:all .25s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+        🎬 Browse Movies
+      </a>
+      {% if not current_user.is_authenticated %}
+      <a href="{{ url_for('auth.register') }}" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.15);color:#fff;font-family:'Poppins',sans-serif;font-weight:700;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:.95rem;border:1.5px solid rgba(255,255,255,.3);transition:all .25s;" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
+        ✨ Join Free
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{% endblock %}

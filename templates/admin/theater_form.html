@@ -1,0 +1,65 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}{{ action }} Theater – Admin{% endblock %}
+{% block page_title %}{{ action }} Theater{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="d-flex align-items-center gap-2 mb-4">
+      <a href="{{ url_for('admin.theaters') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left-short fs-5"></i></a>
+      <h5 class="fw-bold mb-0" style="font-family:'Poppins',sans-serif;">{{ action }} Theater</h5>
+    </div>
+    <div class="bms-card p-4">
+      <form method="POST" novalidate>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Theater Name <span class="text-primary">*</span></label>
+          <input type="text" name="name" class="form-control" value="{{ theater.name if theater else '' }}" placeholder="e.g. PVR Cinemas" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Address / Location</label>
+          <input type="text" name="location" class="form-control" value="{{ theater.location if theater else '' }}" placeholder="Street address">
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">City <span class="text-primary">*</span></label>
+            <input type="text" name="city" class="form-control" value="{{ theater.city if theater else '' }}" placeholder="Mumbai" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">State</label>
+            <input type="text" name="state" class="form-control" value="{{ theater.state if theater else '' }}" placeholder="Maharashtra">
+          </div>
+        </div>
+
+        <!-- ✅ OWNER ASSIGNMENT (this was missing before) -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Assign to Theater Owner</label>
+          <select name="owner_id" class="form-select">
+            <option value="">— None (unassigned) —</option>
+            {% for o in owners %}
+            <option value="{{ o.user_id }}" {{ 'selected' if theater and theater.owner_id == o.user_id }}>
+              {{ o.name }} ({{ o.email }})
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">
+            <i class="bi bi-info-circle me-1"></i>
+            The selected owner will see this theater in their Owner Panel and can add screens &amp; schedule shows.
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Status</label>
+          <select name="status" class="form-select">
+            <option value="Active"      {{ 'selected' if theater and theater.status == 'Active'      else ('selected' if not theater) }}>✅ Active</option>
+            <option value="Inactive"    {{ 'selected' if theater and theater.status == 'Inactive'    }}>⛔ Inactive</option>
+            <option value="Maintenance" {{ 'selected' if theater and theater.status == 'Maintenance' }}>🔧 Maintenance</option>
+          </select>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary px-4"><i class="fa-solid fa-check me-1"></i>{{ action }} Theater</button>
+          <a href="{{ url_for('admin.theaters') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

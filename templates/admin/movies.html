@@ -1,0 +1,83 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Movies{% endblock %}
+{% block page_title %}🎬 Movies{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <h5 class="fw-bold mb-0" style="font-family:'Poppins',sans-serif;font-size:1rem;">🎬 All Movies</h5>
+    <p class="text-muted mb-0" style="font-size:.78rem;">
+      {%- if movies.total is defined -%}{{ movies.total }}{%- else -%}{{ movies|length }}{%- endif -%} movies in the database
+    </p>
+  </div>
+  <a href="{{ url_for('admin.add_movie') }}" class="btn btn-primary btn-sm" style="border-radius:8px;font-weight:700;padding:6px 16px;">
+    ➕ Add Movie
+  </a>
+</div>
+
+<div class="adm-card" style="overflow:hidden;">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="padding-left:16px;">#</th>
+          <th>🎬 Title</th>
+          <th>🎭 Genre</th>
+          <th>🌐 Language</th>
+          <th>⏱️ Dur.</th>
+          <th>⭐ Rating</th>
+          <th>📅 Release</th>
+          <th class="text-center" style="padding-right:16px;">⚙️ Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {%- set movie_list = movies.items if movies.items is defined else movies -%}
+        {% for m in movie_list %}
+        <tr>
+          <td style="padding-left:16px;font-size:.76rem;font-family:monospace;color:var(--adm-text-3);">{{ m.movie_id }}</td>
+          <td style="max-width:200px;">
+            <div class="fw-semibold" style="font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ m.title }}</div>
+            {% if m.description %}
+            <div style="font-size:.72rem;color:var(--adm-text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px;">{{ m.description[:48] }}…</div>
+            {% endif %}
+          </td>
+          <td>
+            <span style="background:rgba(59,130,246,.1);color:#2563EB;border:1px solid rgba(59,130,246,.2);padding:2px 8px;border-radius:20px;font-size:.72rem;font-weight:700;">{{ m.genre or '—' }}</span>
+          </td>
+          <td style="font-size:.81rem;color:var(--adm-text-2);">{{ m.language or '—' }}</td>
+          <td style="font-size:.81rem;color:var(--adm-text-2);">{{ m.duration }}m</td>
+          <td>
+            {% set r = m.rating | float if m.rating else 0 %}
+            <span style="font-weight:700;font-size:.83rem;color:{{ '#F59E0B' if r >= 7 else ('#EF4444' if r < 5 else '#64748B') }};">⭐ {{ "%.1f"|format(r) }}</span>
+          </td>
+          <td style="font-size:.80rem;color:var(--adm-text-2);">{{ m.release_date.strftime('%d %b %Y') if m.release_date else '—' }}</td>
+          <td class="text-center" style="padding-right:16px;">
+            <div class="d-flex gap-1 justify-content-center">
+              <a href="{{ url_for('admin.edit_movie', movie_id=m.movie_id) }}" class="btn btn-sm btn-outline-secondary" style="padding:3px 10px;font-size:.76rem;border-radius:7px;">✏️ Edit</a>
+              <form method="POST" action="{{ url_for('admin.delete_movie', movie_id=m.movie_id) }}" class="d-inline" onsubmit="return confirm('Delete {{ m.title }}?')">
+                <button class="btn btn-sm btn-outline-danger" style="padding:3px 10px;font-size:.76rem;border-radius:7px;">🗑️</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center py-5 text-muted"><div style="font-size:2rem;margin-bottom:8px;">🎬</div>No movies yet. <a href="{{ url_for('admin.add_movie') }}" style="color:var(--adm-blue);">Add one →</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if movies.pages is defined and movies.pages > 1 %}
+  <div class="d-flex align-items-center justify-content-between px-3 py-2" style="border-top:1px solid var(--adm-border);background:var(--adm-bg);">
+    <div style="font-size:.76rem;color:var(--adm-text-3);">Page {{ movies.page }} of {{ movies.pages }} ({{ movies.total }} total)</div>
+    <div class="d-flex gap-1">
+      {% if movies.has_prev %}<a href="{{ url_for('admin.movies', page=movies.prev_num) }}" class="btn btn-sm btn-outline-secondary" style="border-radius:7px;font-size:.76rem;">← Prev</a>{% endif %}
+      {% for p in movies.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}<a href="{{ url_for('admin.movies', page=p) }}" class="btn btn-sm {{ 'btn-primary' if p == movies.page else 'btn-outline-secondary' }}" style="border-radius:7px;font-size:.76rem;min-width:30px;">{{ p }}</a>
+        {% else %}<span class="btn btn-sm btn-outline-secondary disabled" style="border-radius:7px;font-size:.76rem;">…</span>{% endif %}
+      {% endfor %}
+      {% if movies.has_next %}<a href="{{ url_for('admin.movies', page=movies.next_num) }}" class="btn btn-sm btn-outline-secondary" style="border-radius:7px;font-size:.76rem;">Next →</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

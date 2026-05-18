@@ -1,0 +1,579 @@
+{% extends "theater/base_owner.html" %}
+{% block title %}Analytics{% endblock %}
+{% block page_title %}📊 Analytics{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.an-wrap{padding:0;}
+.an-kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.9rem;margin-bottom:1.2rem;}
+.an-kpi{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:1.1rem 1.2rem;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;cursor:default;}
+.an-kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0;}
+.an-kpi.blue::before{background:linear-gradient(90deg,#3B82F6,#06B6D4);}
+.an-kpi.green::before{background:linear-gradient(90deg,#10B981,#34D399);}
+.an-kpi.amber::before{background:linear-gradient(90deg,#F59E0B,#FCD34D);}
+.an-kpi.purple::before{background:linear-gradient(90deg,#8B5CF6,#A78BFA);}
+.an-kpi.teal::before{background:linear-gradient(90deg,#06B6D4,#67E8F9);}
+.an-kpi.red::before{background:linear-gradient(90deg,#EF4444,#F87171);}
+.an-kpi:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.08);}
+.an-kpi-emoji{font-size:1.4rem;margin-bottom:8px;display:block;}
+.an-kpi-val{font-family:'Poppins',sans-serif;font-size:1.45rem;font-weight:900;color:#0F172A;line-height:1;margin-bottom:4px;}
+.an-kpi-lbl{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94A3B8;}
+.an-kpi-sub{font-size:.67rem;color:#CBD5E1;margin-top:2px;}
+.an-grid-2{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:1rem;}
+.an-grid-1{display:grid;grid-template-columns:1fr;gap:1rem;}
+.an-card{background:#fff;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05);transition:box-shadow .2s;}
+.an-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.1);}
+.an-card-hdr{padding:.8rem 1.1rem;border-bottom:1px solid #F1F5F9;display:flex;align-items:center;justify-content:space-between;gap:.5rem;background:#FAFBFC;}
+.an-card-title{font-size:.85rem;font-weight:700;color:#1E293B;display:flex;align-items:center;gap:6px;}
+.an-card-badge{font-size:.65rem;background:rgba(59,130,246,.1);color:#2563EB;border:1px solid rgba(59,130,246,.2);border-radius:20px;padding:2px 8px;font-weight:700;white-space:nowrap;}
+.an-card-body{padding:1rem 1.1rem;}
+.an-section{display:flex;align-items:center;gap:10px;margin:1.6rem 0 .8rem;}
+.an-section-bar{width:4px;height:18px;border-radius:2px;flex-shrink:0;background:linear-gradient(180deg,#3B82F6,#06B6D4);}
+.an-section-title{font-family:'Poppins',sans-serif;font-size:.95rem;font-weight:800;color:#0F172A;}
+.an-skeleton{background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;animation:skel 1.4s infinite;border-radius:8px;}
+@keyframes skel{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.an-select{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;color:#374151;font-size:.78rem;padding:4px 9px;outline:none;cursor:pointer;}
+.an-btn{background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;border:none;border-radius:8px;font-size:.8rem;font-weight:700;padding:5px 14px;cursor:pointer;transition:all .2s;}
+.an-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,.35);}
+.an-occ-row{margin-bottom:12px;}
+.an-occ-meta{display:flex;justify-content:space-between;margin-bottom:5px;}
+.an-occ-label{font-size:.82rem;font-weight:600;color:#1E293B;max-width:65%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.an-occ-pct{font-size:.78rem;color:#64748B;font-weight:600;}
+.an-occ-track{height:8px;background:#F1F5F9;border-radius:4px;overflow:hidden;}
+.an-occ-fill{height:100%;border-radius:4px;transition:width .8s ease;background:linear-gradient(90deg,#3B82F6,#06B6D4);}
+.an-occ-fill.green{background:linear-gradient(90deg,#10B981,#34D399);}
+.an-occ-fill.amber{background:linear-gradient(90deg,#F59E0B,#FCD34D);}
+.an-occ-fill.red{background:linear-gradient(90deg,#EF4444,#F87171);}
+@media(max-width:640px){.an-kpi-grid{grid-template-columns:repeat(2,1fr);}.an-grid-2{grid-template-columns:1fr;}}
+</style>
+{% endblock %}
+
+{% block content %}
+{% if no_theaters %}
+<div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:14px;padding:32px;text-align:center;">
+  <div style="font-size:3rem;margin-bottom:12px;">🏟️</div>
+  <h5 style="font-family:'Poppins',sans-serif;font-weight:700;color:#92400E;">No theaters assigned yet</h5>
+  <p style="color:#B45309;font-size:.88rem;">Contact the admin to link theaters to your account.</p>
+</div>
+{% else %}
+
+<!-- Header -->
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <h4 style="font-family:'Poppins',sans-serif;font-weight:900;color:#0F172A;margin:0;">📊 My Theater Analytics</h4>
+    <p style="color:#94A3B8;font-size:.8rem;margin:3px 0 0;">
+      Live data for <strong style="color:#2563EB;">{{ theaters|length }}</strong> theater{{ 's' if theaters|length>1 }}
+      <span id="last-updated" style="margin-left:6px;color:#CBD5E1;"></span>
+    </p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <select class="an-select" id="f-range">
+      <option value="30">Last 30 days</option>
+      <option value="90" selected>Last 90 days</option>
+      <option value="180">Last 6 months</option>
+      <option value="365">Last year</option>
+    </select>
+    <button class="an-btn" onclick="refreshAll()">🔄 Refresh</button>
+  </div>
+</div>
+
+<!-- KPI Cards removed from analytics as requested -->
+
+<!-- SECTION 1: BOOKING TRENDS -->
+<div class="an-section"><div class="an-section-bar"></div><span class="an-section-title">📈 Booking Trends</span></div>
+<div class="an-grid-2 mb-3">
+  <div class="an-card">
+    <div class="an-card-hdr">
+      <span class="an-card-title">📆 Monthly Earnings ₹ (X: Month, Y: Revenue Earned)</span>
+      <select class="an-select" id="trendType" onchange="buildTrend()"><option value="bar">Bar</option><option value="line">Line</option></select>
+    </div>
+    <div class="an-card-body"><canvas id="trendChart" height="200"></canvas></div>
+  </div>
+  <div class="an-card">
+    <div class="an-card-hdr"><span class="an-card-title">📅 Busiest Days of Week (X: Day, Y: No. of Bookings)</span><span class="an-card-badge">Column</span></div>
+    <div class="an-card-body"><canvas id="dowChart" height="200"></canvas></div>
+  </div>
+</div>
+
+<!-- SECTION 2: REVENUE -->
+<div class="an-section"><div class="an-section-bar" style="background:linear-gradient(180deg,#10B981,#34D399);"></div><span class="an-section-title">💰 Revenue Analytics</span></div>
+<div class="an-grid-2 mb-3">
+  <div class="an-card" style="grid-column:1/-1;">
+    <div class="an-card-hdr"><span class="an-card-title">💳 Payment Methods</span><span class="an-card-badge">Donut</span></div>
+    <div class="an-card-body" style="height:220px;display:flex;align-items:center;justify-content:center;"><canvas id="payChart" style="max-height:200px;"></canvas></div>
+  </div>
+</div>
+<div class="an-grid-2 mb-3">
+  <div class="an-card">
+    <div class="an-card-hdr">
+      <span class="an-card-title">📽️ Revenue by Screen Type</span>
+      <span class="an-card-badge" id="screenBadge">Loading…</span>
+    </div>
+    <div class="an-card-body" style="height:200px;position:relative;">
+      <div id="screen-skeleton" class="an-skeleton" style="height:100%;"></div>
+      <canvas id="screenChart" style="display:none;width:100%;height:100%;"></canvas>
+    </div>
+  </div>
+  <div class="an-card">
+    <div class="an-card-hdr">
+      <span class="an-card-title">✅ Booking Status</span>
+      <span class="an-card-badge" id="statusBadge">Loading…</span>
+    </div>
+    <div class="an-card-body" style="height:200px;position:relative;">
+      <div id="status-skeleton" class="an-skeleton" style="height:100%;"></div>
+      <canvas id="statusChart" style="display:none;width:100%;height:100%;"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 3: MOVIES -->
+<div class="an-section"><div class="an-section-bar" style="background:linear-gradient(180deg,#F59E0B,#F97316);"></div><span class="an-section-title">🎬 Movie Performance</span></div>
+<div class="an-grid-2 mb-3">
+  <div class="an-card">
+    <div class="an-card-hdr"><span class="an-card-title">🏆 Top Movies by Revenue ₹ (Y: Movie, X: Revenue Earned)</span><span class="an-card-badge">Horizontal Bar</span></div>
+    <div class="an-card-body" style="height:250px;"><canvas id="movieChart"></canvas></div>
+  </div>
+  <div class="an-card">
+    <div class="an-card-hdr">
+      <span class="an-card-title">🎭 Genre Share by Booking Count</span>
+      <select class="an-select" id="genreView" onchange="buildGenreChart()"><option value="donut">Donut</option><option value="bar">Bar</option></select>
+    </div>
+    <div class="an-card-body" style="height:250px;"><canvas id="genreChart"></canvas></div>
+  </div>
+</div>
+
+<!-- SECTION 4: SEAT UTILIZATION -->
+<div class="an-section"><div class="an-section-bar" style="background:linear-gradient(180deg,#8B5CF6,#A78BFA);"></div><span class="an-section-title">🪑 Seat & Screen Utilization</span></div>
+<div class="an-grid-2 mb-3">
+  <div class="an-card">
+    <div class="an-card-hdr"><span class="an-card-title">🪑 Seat Occupancy</span><span class="an-card-badge">Progress Bars</span></div>
+    <div class="an-card-body">
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:1.2rem;">🪑</div>
+            <div id="own-occ-total" style="font-family:'Poppins',sans-serif;font-size:1.2rem;font-weight:900;color:#0F172A;"><span class="an-skeleton" style="display:inline-block;width:48px;height:22px;"></span></div>
+            <div style="font-size:.67rem;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Total Seats</div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:1.2rem;">✅</div>
+            <div id="own-occ-booked" style="font-family:'Poppins',sans-serif;font-size:1.2rem;font-weight:900;color:#0F172A;"><span class="an-skeleton" style="display:inline-block;width:48px;height:22px;"></span></div>
+            <div style="font-size:.67rem;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Booked</div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:1.2rem;">🔓</div>
+            <div id="own-occ-avail" style="font-family:'Poppins',sans-serif;font-size:1.2rem;font-weight:900;color:#0F172A;"><span class="an-skeleton" style="display:inline-block;width:48px;height:22px;"></span></div>
+            <div style="font-size:.67rem;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Available</div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:1.2rem;">📊</div>
+            <div id="own-occ-pct" style="font-family:'Poppins',sans-serif;font-size:1.2rem;font-weight:900;color:#0F172A;"><span class="an-skeleton" style="display:inline-block;width:48px;height:22px;"></span></div>
+            <div style="font-size:.67rem;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Occupancy</div>
+          </div>
+        </div>
+      </div>
+      <div class="an-occ-row">
+        <div class="an-occ-meta"><span class="an-occ-label">Overall Occupancy</span><span class="an-occ-pct" id="own-occ-pct-lbl">—</span></div>
+        <div class="an-occ-track">
+          <div class="an-occ-fill green" id="own-occ-bar" style="width:0%;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="an-card">
+    <div class="an-card-hdr"><span class="an-card-title">🖥️ Per-Screen: Bookings vs Shows (X: Screen, Y: Count)</span><span class="an-card-badge">Stacked Bar</span></div>
+    <div class="an-card-body" style="height:250px;"><canvas id="screenUtilChart"></canvas></div>
+  </div>
+</div>
+
+<!-- SECTION 5: TIMINGS -->
+<div class="an-section"><div class="an-section-bar" style="background:linear-gradient(180deg,#06B6D4,#67E8F9);"></div><span class="an-section-title">🕐 Show Timing Performance</span></div>
+<div class="an-grid-2 mb-3">
+  <div class="an-card">
+    <div class="an-card-hdr">
+      <span class="an-card-title">🕐 Bookings by Time Slot (X: Hour Range, Y: No. of Bookings)</span>
+      <span class="an-card-badge" id="slotBadge">Loading…</span>
+    </div>
+    <div class="an-card-body" style="height:200px;position:relative;">
+      <div id="slot-skeleton" class="an-skeleton" style="height:100%;"></div>
+      <canvas id="slotChart" style="display:none;width:100%;height:100%;"></canvas>
+    </div>
+  </div>
+  <div class="an-card">
+    <div class="an-card-hdr"><span class="an-card-title">⏰ Peak Show Start Times (X: Hour, Y: No. of Bookings)</span><span class="an-card-badge">Line</span></div>
+    <div class="an-card-body" style="height:200px;"><canvas id="hourlyChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Injected server data -->
+<script id="d-trend"  type="application/json">{"labels":{{ monthly_labels|tojson }},"rev":{{ monthly_revenue|tojson }},"cnt":{{ monthly_counts|tojson }}}</script>
+<script id="d-dow"    type="application/json">{"labels":{{ dow_labels|tojson }},"cnt":{{ dow_counts|tojson }}}</script>
+<script id="d-pay"    type="application/json">{"labels":{{ pay_labels|tojson }},"cnt":{{ pay_counts|tojson }}}</script>
+<script id="d-movie"  type="application/json">{"labels":{{ movie_labels|tojson }},"rev":{{ movie_revenue|tojson }}}</script>
+<script id="d-genre"  type="application/json">{"labels":{{ genre_labels|tojson }},"rev":{{ genre_revenue|tojson }},"cnt":{{ genre_counts|tojson }}}</script>
+<script id="d-screen" type="application/json">{"labels":{{ screen_labels|tojson }},"shows":{{ screen_shows|tojson }},"bookings":{{ screen_bookings|tojson }},"rev":{{ screen_revenue|tojson }}}</script>
+<script id="d-hourly" type="application/json">{"labels":{{ hourly_labels|tojson }},"cnt":{{ hourly_counts|tojson }}}</script>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not no_theaters %}
+<script>
+const PAL=['#3B82F6','#10B981','#F59E0B','#8B5CF6','#06B6D4','#EF4444','#EC4899','#F97316','#14B8A6','#84CC16'];
+const BASE={
+  responsive:true,maintainAspectRatio:false,
+  animation:{duration:600,easing:'easeOutQuart'},
+  plugins:{
+    legend:{display:false},
+    tooltip:{backgroundColor:'#1E293B',titleColor:'#F1F5F9',bodyColor:'#94A3B8',borderColor:'#334155',borderWidth:1,padding:10,cornerRadius:8}
+  },
+  scales:{
+    y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.06)'},ticks:{color:'#64748B',font:{size:11}}},
+    x:{grid:{display:false},ticks:{color:'#64748B',font:{size:11}}}
+  }
+};
+const DONUT={
+  responsive:true,maintainAspectRatio:false,
+  animation:{duration:600},
+  plugins:{
+    legend:{position:'right',labels:{color:'#374151',font:{size:11},padding:10,boxWidth:12}},
+    tooltip:{backgroundColor:'#1E293B',titleColor:'#F1F5F9',bodyColor:'#94A3B8',borderColor:'#334155',borderWidth:1,padding:10}
+  },
+  cutout:'60%'
+};
+
+const REG={};
+function parseD(id){try{return JSON.parse(document.getElementById(id)?.textContent||'{}')}catch(e){return{}}}
+function kill(id){if(REG[id]){REG[id].destroy();delete REG[id];}}
+function mk(id,type,data,opts){
+  kill(id);
+  const el=document.getElementById(id);
+  if(!el)return;
+  REG[id]=new Chart(el,{type,data,options:opts||BASE});
+}
+function show(sk,cv){
+  const s=document.getElementById(sk),c=document.getElementById(cv);
+  if(s)s.style.display='none';if(c)c.style.display='block';
+}
+
+
+function buildTrend(){
+  const d=parseD('d-trend'),t=document.getElementById('trendType')?.value||'bar';
+  mk('trendChart',t,{labels:d.labels||[],datasets:[{
+    label:'Revenue ₹',data:d.rev||[],
+    backgroundColor:t==='bar'?'rgba(16,185,129,.7)':'rgba(16,185,129,.12)',
+    borderColor:'#10B981',borderWidth:2,fill:t==='line',tension:.4,
+    borderRadius:t==='bar'?5:0,pointBackgroundColor:'#10B981',pointRadius:t==='line'?4:0
+  }]},{...BASE,maintainAspectRatio:false,
+    scales:{
+      y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.06)'},ticks:{color:'#64748B',font:{size:11},callback:v=>'₹'+v.toLocaleString('en-IN')},title:{display:true,text:'Revenue (₹)',color:'#94A3B8',font:{size:11}}},
+      x:{grid:{display:false},ticks:{color:'#64748B',font:{size:11}},title:{display:true,text:'Month',color:'#94A3B8',font:{size:11}}}
+    }
+  });
+}
+
+function buildDow(){
+  const d=parseD('d-dow');
+  const mx=Math.max(...(d.cnt||[1]));
+  mk('dowChart','bar',{labels:d.labels||[],datasets:[{
+    label:'Bookings',data:d.cnt||[],
+    backgroundColor:(d.cnt||[]).map(v=>v===mx?'rgba(59,130,246,.85)':'rgba(59,130,246,.3)'),
+    borderColor:'#3B82F6',borderWidth:1.5,borderRadius:6
+  }]},{...BASE,maintainAspectRatio:false,
+    scales:{
+      y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.06)'},ticks:{color:'#64748B',font:{size:11}},title:{display:true,text:'No. of Bookings',color:'#94A3B8',font:{size:11}}},
+      x:{grid:{display:false},ticks:{color:'#64748B',font:{size:11}},title:{display:true,text:'Day of Week',color:'#94A3B8',font:{size:11}}}
+    }
+  });
+}
+
+function buildPay(){
+  const d=parseD('d-pay');
+  if(!d.labels||!d.labels.length)return;
+  mk('payChart','doughnut',{labels:d.labels,datasets:[{data:d.cnt||[],backgroundColor:PAL,borderWidth:0,hoverOffset:6}]},DONUT);
+}
+
+function buildMovies(){
+  const d=parseD('d-movie');
+  if(!d.labels||!d.labels.length)return;
+  const opts={...BASE,maintainAspectRatio:false,indexAxis:'y',
+    scales:{
+      y:{ticks:{color:'#64748B',font:{size:10},autoSkip:false},grid:{display:false},title:{display:true,text:'Movie',color:'#94A3B8',font:{size:11}}},
+      x:{beginAtZero:true,grid:{color:'rgba(0,0,0,.06)'},ticks:{color:'#64748B',font:{size:10},callback:v=>'₹'+v.toLocaleString('en-IN')},title:{display:true,text:'Revenue (₹)',color:'#94A3B8',font:{size:11}}}
+    }
+  };
+  mk('movieChart','bar',{labels:d.labels,datasets:[{
+    label:'Revenue ₹',data:d.rev||[],
+    backgroundColor:'rgba(245,158,11,.7)',borderColor:'#F59E0B',borderWidth:1.5,borderRadius:5
+  }]},opts);
+}
+
+let genreV='donut';
+function buildGenreChart(){
+  genreV=document.getElementById('genreView')?.value||genreV;
+  const d=parseD('d-genre');
+  if(!d.labels||!d.labels.length)return;
+  if(genreV==='donut'){
+    mk('genreChart','doughnut',{labels:d.labels,datasets:[{data:d.cnt||[],backgroundColor:PAL,borderWidth:0,hoverOffset:8}]},DONUT);
+  } else {
+    mk('genreChart','bar',{labels:d.labels,datasets:[{
+      label:'Bookings',data:d.cnt||[],
+      backgroundColor:PAL.map(c=>c+'bb'),borderColor:PAL,borderWidth:1.5,borderRadius:6
+    }]},{...BASE,maintainAspectRatio:false});
+  }
+}
+
+function buildScreenUtil(){
+  const d=parseD('d-screen');
+  if(!d.labels||!d.labels.length)return;
+  mk('screenUtilChart','bar',{labels:d.labels,datasets:[
+    {label:'Bookings',data:d.bookings||[],backgroundColor:'rgba(59,130,246,.7)',borderRadius:4},
+    {label:'Shows',data:d.shows||[],backgroundColor:'rgba(6,182,212,.7)',borderRadius:4}
+  ]},{...BASE,maintainAspectRatio:false,plugins:{
+    legend:{display:true,position:'bottom',labels:{color:'#374151',font:{size:11},boxWidth:12}},
+    tooltip:{...BASE.plugins.tooltip}
+  }});
+}
+
+function buildHourly(){
+  const d=parseD('d-hourly');
+  const nonzero=(d.labels||[]).filter((_,i)=>(d.cnt||[])[i]>0);
+  const vals=(d.cnt||[]).filter(v=>v>0);
+  if(!nonzero.length)return;
+  mk('hourlyChart','line',{labels:nonzero,datasets:[{
+    label:'Bookings',data:vals,
+    backgroundColor:'rgba(6,182,212,.1)',borderColor:'#06B6D4',borderWidth:2,
+    fill:true,tension:.4,pointBackgroundColor:'#06B6D4',pointRadius:3,pointHoverRadius:6
+  }]},{...BASE,maintainAspectRatio:false});
+}
+
+function buildMonthlyCnt(){
+  /* Uses the existing trend data (monthly revenue labels) to show booking counts as LINE chart */
+  const d=parseD('d-trend');
+  const labels=d.labels||[];
+  const counts=d.counts||d.cnt||[];
+  const badge=document.getElementById('monthly-cnt-badge');
+  if(!labels.length||!counts.length){
+    if(badge)badge.textContent='No data';
+    const cv=document.getElementById('monthlyCntChart');
+    if(cv){const ctx=cv.getContext('2d');if(ctx){ctx.font='13px Inter';ctx.fillStyle='#94A3B8';ctx.textAlign='center';ctx.fillText('No booking data available yet',cv.width/2,cv.height/2);}}
+    return;
+  }
+  const total=counts.reduce((a,b)=>a+b,0);
+  if(badge)badge.textContent=labels.length+' months · '+total.toLocaleString('en-IN')+' bookings';
+  mk('monthlyCntChart','line',{labels:labels,datasets:[{
+    label:'Bookings',data:counts,
+    backgroundColor:'rgba(59,130,246,.12)',borderColor:'#3B82F6',borderWidth:2.5,
+    fill:true,tension:.4,
+    pointBackgroundColor:'#3B82F6',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:5,pointHoverRadius:7
+  }]},{...BASE,maintainAspectRatio:false,
+    scales:{
+      y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.06)'},ticks:{color:'#64748B',font:{size:11}},title:{display:true,text:'Bookings',color:'#94A3B8',font:{size:11}}},
+      x:{grid:{display:false},ticks:{color:'#64748B',font:{size:11}},title:{display:true,text:'Month',color:'#94A3B8',font:{size:11}}}
+    }
+  });
+}
+
+function _noDataMsg(skId,badgeId,emoji,msg,badgeText){
+  const sk=document.getElementById(skId);
+  if(sk){sk.style.display='block';sk.innerHTML='<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94A3B8;font-size:.82rem;gap:6px;"><span style="font-size:1.8rem;">'+emoji+'</span>'+msg+'</div>';}
+  const b=document.getElementById(badgeId);if(b)b.textContent=badgeText||'0 records';
+}
+
+function buildSlot(d){
+  if(!d||!d.labels||!d.labels.length){_noDataMsg('slot-skeleton','slotBadge','⏰','No slot data available','0 slots');return;}
+  show('slot-skeleton','slotChart');
+  document.getElementById('slotBadge').textContent=d.labels.length+' slots';
+  mk('slotChart','bar',{labels:d.labels,datasets:[{
+    label:'Bookings',data:d.counts||[],
+    backgroundColor:['rgba(245,158,11,.7)','rgba(59,130,246,.7)','rgba(139,92,246,.7)','rgba(6,182,212,.7)'],
+    borderColor:['#F59E0B','#3B82F6','#8B5CF6','#06B6D4'],borderWidth:1.5,borderRadius:6
+  }]},{...BASE,maintainAspectRatio:false});
+}
+
+function buildStatus(d){
+  if(!d||!d.labels||!d.labels.length){_noDataMsg('status-skeleton','statusBadge','✅','No booking status data yet','0 types');return;}
+  show('status-skeleton','statusChart');
+  document.getElementById('statusBadge').textContent=d.labels.length+' types';
+  mk('statusChart','doughnut',{labels:d.labels,datasets:[{
+    data:d.counts||[],backgroundColor:['#10B981','#EF4444','#F59E0B','#94A3B8'],borderWidth:0,hoverOffset:6
+  }]},DONUT);
+}
+
+function buildScreenType(d){
+  if(!d||!d.labels||!d.labels.length){_noDataMsg('screen-skeleton','screenBadge','📽️','No screen type data yet','0 types');return;}
+  show('screen-skeleton','screenChart');
+  document.getElementById('screenBadge').textContent=d.labels.length+' types';
+  mk('screenChart','bar',{labels:d.labels,datasets:[
+    {label:'Bookings',data:d.counts||[],backgroundColor:'rgba(59,130,246,.7)',borderRadius:4},
+    {label:'Revenue (₹K)',data:(d.revenue||[]).map(v=>Math.round(v/1000)),backgroundColor:'rgba(16,185,129,.7)',borderRadius:4}
+  ]},{...BASE,maintainAspectRatio:false,plugins:{
+    legend:{display:true,position:'bottom',labels:{color:'#374151',font:{size:11},boxWidth:12}},
+    tooltip:{...BASE.plugins.tooltip}
+  }});
+}
+
+/* ── Update Occupancy KPIs from AJAX data ── */
+function updateOwnerOccupancyKPIs(occ){
+  if(!occ)return;
+  const total  = occ.total  || 0;
+  const booked = occ.booked || 0;
+  const avail  = total - booked;
+  const pct    = occ.pct    || 0;
+  const fmt    = n => n.toLocaleString('en-IN');
+  const el = id => document.getElementById(id);
+  if(el('own-occ-total'))  el('own-occ-total').textContent  = fmt(total);
+  if(el('own-occ-booked')) el('own-occ-booked').textContent = fmt(booked);
+  if(el('own-occ-avail'))  el('own-occ-avail').textContent  = fmt(avail);
+  if(el('own-occ-pct'))    el('own-occ-pct').textContent    = pct + '%';
+  if(el('own-occ-pct-lbl'))el('own-occ-pct-lbl').textContent= pct + '%';
+  if(el('own-occ-bar')){
+    el('own-occ-bar').style.width = pct + '%';
+    el('own-occ-bar').className   = 'an-occ-fill ' + (pct>80?'red':(pct>50?'amber':'green'));
+  }
+}
+
+async function refreshAll(){
+  try{
+    const [e,_d]=await Promise.all([
+      fetch('/owner/analytics/api/extended').then(r=>r.ok?r.json():null),
+      fetch('/owner/analytics/api/daily').then(r=>r.ok?r.json():null),
+    ]);
+    if(e){
+      if(e.timeslot)buildSlot(e.timeslot);
+      if(e.status)buildStatus(e.status);
+      if(e.screentype)buildScreenType(e.screentype);
+    }
+    const a=await fetch('/owner/analytics/api/all').then(r=>r.ok?r.json():null);
+    if(a){
+      const upd=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=JSON.stringify(v);};
+      if(a.monthly) upd('d-trend',{labels:a.monthly.labels,rev:a.monthly.revenue,counts:a.monthly.counts});
+      if(a.dow)     upd('d-dow',  {labels:a.dow.labels,cnt:a.dow.counts});
+      if(a.payments)upd('d-pay',  {labels:a.payments.labels,cnt:a.payments.counts});
+      if(a.movies)  upd('d-movie',{labels:a.movies.labels,rev:a.movies.revenue});
+      if(a.genre)   upd('d-genre',{labels:a.genre.labels,rev:a.genre.revenue,cnt:a.genre.counts});
+      if(a.screens) upd('d-screen',{labels:a.screens.labels,shows:a.screens.shows,bookings:a.screens.bookings,rev:a.screens.revenue});
+      if(a.hourly)  upd('d-hourly',{labels:a.hourly.labels,cnt:a.hourly.counts});
+      // ── Occupancy KPIs ─────────────────────────────────────────
+      if(a.occupancy) updateOwnerOccupancyKPIs(a.occupancy);
+      buildTrend();buildDow();buildPay();buildMovies();buildGenreChart();buildScreenUtil();buildHourly();
+    }
+    document.getElementById('last-updated').textContent='· Updated '+new Date().toLocaleTimeString();
+  }catch(e){console.warn('[Analytics]',e);}
+}
+
+(async function init(){
+  // Render server-injected charts immediately — no waiting for AJAX
+  try{buildTrend();}catch(e){console.warn('trend',e);}
+  try{buildDow();}catch(e){console.warn('dow',e);}
+  try{buildPay();}catch(e){console.warn('pay',e);}
+  try{buildMovies();}catch(e){console.warn('movies',e);}
+  try{buildGenreChart();}catch(e){console.warn('genre',e);}
+  try{buildScreenUtil();}catch(e){console.warn('screenutil',e);}
+  try{buildHourly();}catch(e){console.warn('hourly',e);}
+
+  // Fetch extended data for slot/status/screentype charts (non-blocking)
+  fetch('/owner/analytics/api/extended')
+    .then(r=>r.ok?r.json():Promise.reject(r.status))
+    .then(ext=>{
+      if(ext.timeslot)try{buildSlot(ext.timeslot);}catch(e){console.warn(e);}
+      if(ext.status)try{buildStatus(ext.status);}catch(e){console.warn(e);}
+      if(ext.screentype)try{buildScreenType(ext.screentype);}catch(e){console.warn(e);}
+    })
+    .catch(e=>{
+      console.warn('[Owner Analytics] /api/extended failed:',e);
+      buildSlot(null);
+      buildStatus(null);
+      buildScreenType(null);
+    });
+
+  // Background refresh every 60s — only updates AJAX-sourced data, not blocking
+  setInterval(refreshAll,60000);
+})();
+
+document.getElementById('trendType')?.addEventListener('change',buildTrend);
+document.getElementById('genreView')?.addEventListener('change',buildGenreChart);
+</script>
+{% endif %}
+
+{% if brand_vs %}
+<div style="background:#fff;border:1px solid #E8EDF2;border-radius:14px;overflow:hidden;margin-top:14px;box-shadow:0 2px 8px rgba(0,0,0,.04);">
+  <div style="padding:12px 16px;border-bottom:1px solid #F1F5F9;background:#FAFBFC;display:flex;align-items:center;justify-content:space-between;">
+    <span style="font-size:.85rem;font-weight:700;color:#1E293B;">🏆 {{ brand_vs.brand_name }} vs Platform Average</span>
+    <span style="font-size:.72rem;color:#94A3B8;">Based on {{ brand_vs.brand_count }} active brands</span>
+  </div>
+  <div style="padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;">
+
+    <!-- Revenue comparison -->
+    <div style="background:#F8FAFC;border-radius:10px;padding:12px 14px;">
+      <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94A3B8;margin-bottom:8px;">Revenue</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:.78rem;color:#6366F1;font-weight:600;">{{ brand_vs.brand_name }}</span>
+        <span style="font-size:.78rem;font-weight:700;color:#1a202c;">₹{{ "{:,.0f}".format(brand_vs.my_revenue) }}</span>
+      </div>
+      <div style="height:7px;background:#E8EDF2;border-radius:4px;overflow:hidden;margin-bottom:6px;">
+        {% set rev_max = [brand_vs.my_revenue, brand_vs.avg_revenue]|max %}
+        <div style="height:100%;width:{{ (brand_vs.my_revenue / rev_max * 100)|round|int }}%;background:#6366F1;border-radius:4px;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:.78rem;color:#94A3B8;">Platform avg</span>
+        <span style="font-size:.78rem;font-weight:700;color:#64748B;">₹{{ "{:,.0f}".format(brand_vs.avg_revenue) }}</span>
+      </div>
+      <div style="height:7px;background:#E8EDF2;border-radius:4px;overflow:hidden;">
+        <div style="height:100%;width:{{ (brand_vs.avg_revenue / rev_max * 100)|round|int }}%;background:#CBD5E1;border-radius:4px;"></div>
+      </div>
+      <div style="margin-top:8px;font-size:.75rem;font-weight:700;color:{{ '#16A34A' if brand_vs.rev_pct >= 0 else '#DC2626' }};">
+        {{ '▲' if brand_vs.rev_pct >= 0 else '▼' }} {{ brand_vs.rev_pct|abs }}% vs average
+      </div>
+    </div>
+
+    <!-- Bookings comparison -->
+    <div style="background:#F8FAFC;border-radius:10px;padding:12px 14px;">
+      <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94A3B8;margin-bottom:8px;">Bookings</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:.78rem;color:#3B82F6;font-weight:600;">{{ brand_vs.brand_name }}</span>
+        <span style="font-size:.78rem;font-weight:700;color:#1a202c;">{{ "{:,}".format(brand_vs.my_bookings) }}</span>
+      </div>
+      <div style="height:7px;background:#E8EDF2;border-radius:4px;overflow:hidden;margin-bottom:6px;">
+        {% set bk_max = [brand_vs.my_bookings, brand_vs.avg_bookings]|max %}
+        <div style="height:100%;width:{{ (brand_vs.my_bookings / bk_max * 100)|round|int if bk_max else 0 }}%;background:#3B82F6;border-radius:4px;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:.78rem;color:#94A3B8;">Platform avg</span>
+        <span style="font-size:.78rem;font-weight:700;color:#64748B;">{{ "{:,.0f}".format(brand_vs.avg_bookings) }}</span>
+      </div>
+      <div style="height:7px;background:#E8EDF2;border-radius:4px;overflow:hidden;">
+        <div style="height:100%;width:{{ (brand_vs.avg_bookings / bk_max * 100)|round|int if bk_max else 0 }}%;background:#CBD5E1;border-radius:4px;"></div>
+      </div>
+      <div style="margin-top:8px;font-size:.75rem;font-weight:700;color:{{ '#16A34A' if brand_vs.book_pct >= 0 else '#DC2626' }};">
+        {{ '▲' if brand_vs.book_pct >= 0 else '▼' }} {{ brand_vs.book_pct|abs }}% vs average
+      </div>
+    </div>
+
+    <!-- Occupancy + theaters -->
+    <div style="background:#F8FAFC;border-radius:10px;padding:12px 14px;">
+      <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94A3B8;margin-bottom:10px;">Scale & Occupancy</div>
+      <div style="display:flex;gap:10px;">
+        <div style="flex:1;text-align:center;background:#fff;border-radius:8px;padding:8px;border:1px solid #E8EDF2;">
+          <div style="font-family:'Poppins',sans-serif;font-weight:800;font-size:1.2rem;color:#1a202c;">{{ brand_vs.my_theaters }}</div>
+          <div style="font-size:.65rem;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;">My theaters</div>
+        </div>
+        <div style="flex:1;text-align:center;background:#fff;border-radius:8px;padding:8px;border:1px solid #E8EDF2;">
+          <div style="font-family:'Poppins',sans-serif;font-weight:800;font-size:1.2rem;color:{{ '#16A34A' if brand_vs.my_occupancy >= 60 else ('#F59E0B' if brand_vs.my_occupancy >= 30 else '#EF4444') }};">{{ brand_vs.my_occupancy }}%</div>
+          <div style="font-size:.65rem;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;">Occupancy</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

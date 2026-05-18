@@ -1,0 +1,214 @@
+{% extends "theater/base_owner.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}🏠 My Dashboard{% endblock %}
+{% block content %}
+
+{% if not theaters %}
+<div style="background:linear-gradient(135deg,#FFF7ED,#FFFBEB);border:1.5px solid rgba(245,158,11,.25);border-radius:14px;padding:20px 22px;display:flex;align-items:flex-start;gap:14px;margin-top:8px;">
+  <div style="font-size:1.8rem;flex-shrink:0;">⚠️</div>
+  <div>
+    <div class="fw-bold" style="color:#92400E;margin-bottom:4px;">No theater assigned yet</div>
+    <div class="small" style="color:#B45309;">Contact the admin to link a theater to your account.</div>
+  </div>
+</div>
+{% else %}
+
+<!-- Brand Banner -->
+{% if brand %}
+<div style="background:linear-gradient(135deg,#312E81,#4338CA,#6D28D9);border-radius:16px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div style="width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:800;color:#fff;border:2px solid rgba(255,255,255,.2);">
+      {{ brand.brand_name[0] }}
+    </div>
+    <div>
+      <div style="font-family:'Poppins',sans-serif;font-weight:800;font-size:1.2rem;color:#fff;line-height:1.2;">{{ brand.brand_name }}</div>
+      <div style="font-size:.78rem;color:rgba(255,255,255,.65);margin-top:2px;">{{ theaters|length }} theater{{ 's' if theaters|length > 1 }} · Brand Management Portal</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <div style="background:rgba(255,255,255,.12);border-radius:10px;padding:8px 16px;text-align:center;border:1px solid rgba(255,255,255,.15);">
+      <div style="font-family:'Poppins',sans-serif;font-weight:800;font-size:1.1rem;color:#fff;">{{ stats.this_week }}</div>
+      <div style="font-size:.65rem;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.07em;">This week</div>
+    </div>
+    <div style="background:rgba(255,255,255,.12);border-radius:10px;padding:8px 16px;text-align:center;border:1px solid rgba(255,255,255,.15);">
+      <div style="font-family:'Poppins',sans-serif;font-weight:800;font-size:1.1rem;color:{% if stats.wow_pct >= 0 %}#6EE7B7{% else %}#FCA5A5{% endif %};">
+        {{ '▲' if stats.wow_pct >= 0 else '▼' }}{{ stats.wow_pct|abs }}%
+      </div>
+      <div style="font-size:.65rem;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.07em;">vs last week</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Welcome + Action Buttons -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h5 class="fw-bold mb-1" style="font-family:'Poppins',sans-serif;font-size:1.3rem;">👋 Welcome, {{ current_user.name }}</h5>
+    <p class="text-muted small mb-0">Managing {{ theaters|length }} theater{{ 's' if theaters|length > 1 }}{% if brand %} under {{ brand.brand_name }}{% endif %}</p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('owner.add_show') }}" class="btn btn-primary btn-sm" style="border-radius:9px;font-weight:700;">
+      📅 New Show
+    </a>
+    <a href="{{ url_for('owner.add_screen') }}" class="btn btn-outline-secondary btn-sm" style="border-radius:9px;font-weight:700;">
+      ➕ New Screen
+    </a>
+  </div>
+</div>
+
+<!-- Stat Cards -->
+<div class="row g-3 mb-5">
+  <div class="col-6 col-xl-3">
+    <div style="background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.05);transition:all .25s;" onmouseover="this.style.borderColor='#A5B4FC';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#E2E8F0';this.style.transform='none'">
+      <div style="font-size:1.8rem;margin-bottom:10px;">🏟️</div>
+      <div style="font-size:1.7rem;font-weight:900;font-family:'Poppins',sans-serif;color:#0F172A;line-height:1;">{{ stats.theaters }}</div>
+      <div style="font-size:.72rem;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:5px;">My Theaters</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <a href="{{ url_for('owner.screens') }}" class="text-decoration-none">
+      <div style="background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.05);transition:all .25s;height:100%;" onmouseover="this.style.borderColor='#93C5FD';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#E2E8F0';this.style.transform='none'">
+        <div style="font-size:1.8rem;margin-bottom:10px;">📺</div>
+        <div style="font-size:1.7rem;font-weight:900;font-family:'Poppins',sans-serif;color:#0F172A;line-height:1;">{{ stats.screens }}</div>
+        <div style="font-size:.72rem;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:5px;">Screens</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-xl-3">
+    <a href="{{ url_for('owner.shows') }}" class="text-decoration-none">
+      <div style="background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.05);transition:all .25s;height:100%;" onmouseover="this.style.borderColor='#6EE7B7';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#E2E8F0';this.style.transform='none'">
+        <div style="font-size:1.8rem;margin-bottom:10px;">🎬</div>
+        <div style="font-size:1.7rem;font-weight:900;font-family:'Poppins',sans-serif;color:#0F172A;line-height:1;">{{ stats.shows }}</div>
+        <div style="font-size:.72rem;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:5px;">Shows</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-xl-3">
+    <a href="{{ url_for('owner.bookings') }}" class="text-decoration-none">
+      <div style="background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.05);transition:all .25s;height:100%;" onmouseover="this.style.borderColor='#FCD34D';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#E2E8F0';this.style.transform='none'">
+        <div style="font-size:1.8rem;margin-bottom:10px;">🎟️</div>
+        <div style="font-size:1.7rem;font-weight:900;font-family:'Poppins',sans-serif;color:#0F172A;line-height:1;">{{ "{:,}".format(stats.real_bookings) }}</div>
+        <div style="font-size:.72rem;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:5px;">App Bookings</div>
+        <div style="font-size:.68rem;color:#CBD5E1;margin-top:3px;">From real customers only</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-12 col-xl-4">
+    <div style="background:linear-gradient(135deg,#059669,#047857);border-radius:16px;padding:22px 24px;box-shadow:0 6px 20px rgba(5,150,105,.3);display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.65);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">💰 Confirmed Revenue</div>
+        <div style="font-size:2rem;font-weight:900;font-family:'Poppins',sans-serif;color:#fff;line-height:1;">₹{{ "{:,.0f}".format(stats.revenue) }}</div>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.55);margin-top:6px;">
+          ✅ From successful payments only
+        </div>
+        {% if stats.real_bookings > 0 %}
+        <div style="margin-top:8px;background:rgba(255,255,255,.12);border-radius:8px;padding:5px 10px;display:inline-block;">
+          <span style="font-size:.7rem;color:rgba(255,255,255,.8);font-weight:600;">{{ stats.real_bookings }} bookings from app users</span>
+        </div>
+        {% endif %}
+      </div>
+      <div style="width:54px;height:54px;background:rgba(255,255,255,.18);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.7rem;">💹</div>
+    </div>
+  </div>
+</div>
+
+<!-- My Theaters Section -->
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <span style="font-size:.7rem;font-weight:800;color:#94A3B8;letter-spacing:1.5px;text-transform:uppercase;">🏟️ My Theaters</span>
+  </div>
+  <div class="row g-3">
+    {% for t in theaters %}
+    <div class="col-md-6 col-lg-4">
+      <div style="background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.06);transition:all .25s;height:100%;" onmouseover="this.style.borderColor='#93C5FD';this.style.boxShadow='0 8px 24px rgba(59,130,246,.12)'" onmouseout="this.style.borderColor='#E2E8F0';this.style.boxShadow='0 2px 10px rgba(0,0,0,.06)'">
+        <!-- Theater header -->
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div style="width:46px;height:46px;background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(109,40,217,.1));border:1.5px solid rgba(139,92,246,.2);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">🏟️</div>
+          <div class="flex-grow-1" style="min-width:0;">
+            <div class="fw-bold" style="font-size:.95rem;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.name }}</div>
+            <div style="font-size:.78rem;color:#64748B;margin-top:2px;">📍 {{ t.location or t.city }}</div>
+          </div>
+        </div>
+        <!-- Location badge -->
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:8px 12px;margin-bottom:14px;">
+          <div style="font-size:.75rem;color:#64748B;line-height:1.5;">
+            🗺️ {{ t.city }}{% if t.state %}, {{ t.state }}{% endif %}
+          </div>
+        </div>
+        <!-- Action buttons -->
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('owner.screens') }}" class="btn btn-outline-secondary btn-sm flex-fill" style="border-radius:9px;font-weight:600;font-size:.82rem;">
+            📺 Screens
+          </a>
+          <a href="{{ url_for('owner.shows') }}" class="btn btn-primary btn-sm flex-fill" style="border-radius:9px;font-weight:600;font-size:.82rem;">
+            🎬 Shows
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Recent Shows Table -->
+<div style="background:#fff;border:1px solid #E2E8F0;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05);">
+  <div class="d-flex align-items-center justify-content-between px-4 py-3" style="border-bottom:1px solid #E2E8F0;">
+    <span class="fw-semibold" style="font-size:.9rem;color:#0F172A;">📅 Recent Shows</span>
+    <a href="{{ url_for('owner.shows') }}" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;font-size:.78rem;">View All →</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" style="font-size:.84rem;">
+      <thead style="background:#F8FAFC;border-bottom:1px solid #E2E8F0;">
+        <tr>
+          <th class="ps-4 py-3" style="color:#94A3B8;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;">🎬 Movie</th>
+          <th class="py-3" style="color:#94A3B8;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;">🏟️ Theater</th>
+          <th class="py-3 text-center" style="color:#94A3B8;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;">📺 Screen</th>
+          <th class="py-3" style="color:#94A3B8;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;">📅 Date</th>
+          <th class="py-3" style="color:#94A3B8;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;">🕐 Time</th>
+          <th class="py-3 text-center" style="color:#94A3B8;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;">💺 Seats</th>
+          <th class="py-3" style="color:#94A3B8;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;">💰 Price</th>
+          <th class="py-3 pe-4" style="color:#94A3B8;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in upcoming_shows %}
+        <tr style="border-bottom:1px solid #F1F5F9;">
+          <td class="ps-4 fw-semibold" style="color:#0F172A;">{{ s.movie.title }}</td>
+          <td class="text-muted">{{ s.theater.name }}</td>
+          <td class="text-center">
+            <span style="background:#F1F5F9;border:1px solid #E2E8F0;padding:2px 10px;border-radius:20px;font-size:.78rem;font-weight:700;">{{ s.screen.screen_number }}</span>
+          </td>
+          <td style="color:#374151;">{{ s.show_date_display }}</td>
+          <td class="text-muted">{{ s.start_time[:5] if s.start_time else '—' }}</td>
+          <td class="text-center">
+            {% set seats = s.available_seats or 0 %}
+            <span style="padding:2px 10px;border-radius:20px;font-size:.78rem;font-weight:700;
+              background:{{ 'rgba(5,150,105,.1)' if seats > 20 else ('rgba(245,158,11,.1)' if seats > 0 else 'rgba(239,68,68,.1)') }};
+              color:{{ '#059669' if seats > 20 else ('#D97706' if seats > 0 else '#DC2626') }};">
+              {{ seats }}
+            </span>
+          </td>
+          <td style="font-weight:700;color:#059669;">₹{{ s.price_per_ticket }}</td>
+          <td class="pe-4">
+            <form method="POST" action="{{ url_for('owner.delete_show', show_id=s.show_id) }}"
+                  onsubmit="return confirm('Delete this show?')">
+              <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="border-radius:7px;font-size:.8rem;">🗑️</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center py-5" style="color:#94A3B8;">
+            <div style="font-size:2.5rem;margin-bottom:10px;">🎬</div>
+            No shows yet.
+            <a href="{{ url_for('owner.add_show') }}" style="color:#3B82F6;font-weight:600;">Schedule one →</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,183 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Refund Management{% endblock %}
+{% block page_title %}💸 Refund Management{% endblock %}
+
+{% block content %}
+<style>
+.refund-stat-card { background: var(--adm-card-bg); border: 1px solid var(--adm-border); border-radius: 14px; padding: 20px 24px; display: flex; align-items: center; gap: 16px; }
+.refund-stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; }
+.refund-stat-val  { font-size: 1.7rem; font-weight: 800; font-family: 'Poppins', sans-serif; line-height: 1; }
+.refund-stat-lbl  { font-size: .73rem; color: var(--adm-text-3); font-weight: 500; margin-top: 4px; }
+.status-pill      { display: inline-flex; align-items: center; gap: 5px; padding: 3px 12px; border-radius: 20px; font-size: .72rem; font-weight: 700; }
+.pill-pending  { background: rgba(245,158,11,.12); color: #F59E0B; border: 1px solid rgba(245,158,11,.25); }
+.pill-approved { background: rgba(16,185,129,.12); color: #10B981; border: 1px solid rgba(16,185,129,.25); }
+.pill-rejected { background: rgba(239,68,68,.12); color: #EF4444; border: 1px solid rgba(239,68,68,.25); }
+.pill-refunded { background: rgba(139,92,246,.12); color: #8B5CF6; border: 1px solid rgba(139,92,246,.25); }
+.pill-cancelled{ background: rgba(100,116,139,.12); color: #64748B; border: 1px solid rgba(100,116,139,.25); }
+.filter-tab { border: 1.5px solid var(--adm-border); background: var(--adm-card-bg); color: var(--adm-text-1); padding: 6px 18px; border-radius: 30px; font-size: .78rem; font-weight: 600; text-decoration: none; transition: background .15s, color .15s, border-color .15s; display: inline-block; }
+.filter-tab:hover { background: rgba(59,130,246,.18); color: #60A5FA; border-color: #3B82F6; text-decoration: none; }
+.filter-tab.active { background: #3B82F6; color: #fff !important; border-color: #3B82F6; box-shadow: 0 2px 8px rgba(59,130,246,.35); }
+.reject-modal .modal-content { border-radius: 16px; border: 1px solid var(--adm-border); background: var(--adm-card-bg); }
+</style>
+
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+  {% for icon,val,lbl,bg,color in [
+    ('🎫', stats.total,    'Total Requests',   'rgba(59,130,246,.12)',  '#3B82F6'),
+    ('⏳', stats.pending,  'Pending',           'rgba(245,158,11,.12)', '#F59E0B'),
+    ('✅', stats.approved, 'Approved',          'rgba(16,185,129,.12)', '#10B981'),
+    ('❌', stats.rejected, 'Rejected',          'rgba(239,68,68,.12)',  '#EF4444'),
+  ] %}
+  <div class="col-6 col-md-3">
+    <div class="refund-stat-card">
+      <div class="refund-stat-icon" style="background:{{ bg }};color:{{ color }};font-size:1.5rem;">{{ icon }}</div>
+      <div>
+        <div class="refund-stat-val" style="color:{{ color }};">{{ val }}</div>
+        <div class="refund-stat-lbl">{{ lbl }}</div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Filters -->
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+  {% for slug, label in [('all','All'),('pending','Pending'),('approved','Approved'),('rejected','Rejected')] %}
+  <a href="{{ url_for('admin.refund_management', status=slug) }}"
+     class="filter-tab {{ 'active' if status_filter == slug else '' }}">
+    {{ label }}
+  </a>
+  {% endfor %}
+  <span class="ms-auto text-muted" style="font-size:.76rem;">{{ bookings|length }} result(s)</span>
+</div>
+
+<!-- Table -->
+<div class="adm-card" style="overflow:hidden;">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="padding-left:16px;font-size:.76rem;">Booking ID</th>
+          <th style="font-size:.76rem;">User</th>
+          <th style="font-size:.76rem;">Movie</th>
+          <th style="font-size:.76rem;">Show Date</th>
+          <th style="font-size:.76rem;">Cancelled On</th>
+          <th style="font-size:.76rem;">Tickets</th>
+          <th style="font-size:.76rem;">Paid</th>
+          <th style="font-size:.76rem;">Conv. Fee</th>
+          <th style="font-size:.76rem;">Refund Amt</th>
+          <th style="font-size:.76rem;">Refund Status</th>
+          <th style="font-size:.76rem;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in bookings %}
+        <tr>
+          <td style="padding-left:16px;"><code style="color:#93C5FD;font-size:.72rem;">{{ b.booking_id }}</code></td>
+          <td>
+            <div style="font-weight:600;font-size:.81rem;">{{ b.user.name if b.user else b.user_id }}</div>
+            <div style="font-size:.69rem;color:var(--adm-text-3);">{{ b.user.email if b.user else '' }}</div>
+          </td>
+          <td style="font-weight:600;font-size:.81rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            {{ b.show.movie.title if b.show and b.show.movie else '—' }}
+          </td>
+          <td style="font-size:.78rem;color:var(--adm-text-2);">
+            {{ b.show.show_date_display if b.show else '—' }}<br>
+            <span style="font-size:.69rem;color:var(--adm-text-3);">{{ b.show.start_time_display if b.show else '' }}</span>
+          </td>
+          <td style="font-size:.76rem;color:var(--adm-text-2);">
+            {{ b.cancelled_at.strftime('%d %b %Y %H:%M') if b.cancelled_at else '—' }}
+          </td>
+          <td class="text-center">
+            <span style="background:rgba(59,130,246,.1);color:#3B82F6;padding:2px 9px;border-radius:20px;font-size:.74rem;font-weight:700;">{{ b.total_tickets or '—' }}</span>
+          </td>
+          <td style="font-size:.8rem;font-weight:700;color:var(--adm-text-1);">
+            ₹{{ '%.2f'|format((b.total_amount or 0)|float) }}
+          </td>
+          <td style="font-size:.78rem;color:#F59E0B;">
+            ₹{{ '%.0f'|format((b.convenience_fee or 30)|float) }}
+          </td>
+          <td style="font-size:.85rem;font-weight:800;color:#10B981;">
+            ₹{{ '%.2f'|format((b.refund_amount or 0)|float) }}
+          </td>
+          <td>
+            {% if b.refund_status == 'PENDING' %}
+              <span class="status-pill pill-pending">⏳ Pending</span>
+            {% elif b.refund_status == 'APPROVED' %}
+              <span class="status-pill pill-approved">✅ Approved</span>
+            {% elif b.refund_status == 'REJECTED' %}
+              <span class="status-pill pill-rejected">❌ Rejected</span>
+            {% elif b.payment_status == 'REFUNDED' %}
+              <span class="status-pill pill-refunded">💸 Refunded</span>
+            {% else %}
+              <span class="status-pill pill-cancelled">🚫 Cancelled</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if b.refund_status == 'PENDING' %}
+            <div class="d-flex gap-1 flex-wrap">
+              <form method="POST" action="{{ url_for('admin.approve_refund', booking_id=b.booking_id) }}"
+                    onsubmit="return confirm('Approve refund of ₹{{ '%.2f'|format((b.refund_amount or 0)|float) }} for {{ b.booking_id }}?')">
+                <button class="btn btn-sm" style="background:#10B981;color:#fff;border-radius:8px;font-size:.72rem;padding:4px 12px;">
+                  ✅ Approve
+                </button>
+              </form>
+              <button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:#EF4444;border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:.72rem;padding:4px 10px;"
+                      data-bs-toggle="modal" data-bs-target="#rejectModal{{ loop.index }}">
+                ❌ Reject
+              </button>
+            </div>
+
+            <!-- Reject Modal -->
+            <div class="modal fade reject-modal" id="rejectModal{{ loop.index }}" tabindex="-1">
+              <div class="modal-dialog modal-sm">
+                <div class="modal-content p-3">
+                  <h6 class="fw-bold mb-3" style="font-family:'Poppins',sans-serif;">Reject Refund</h6>
+                  <p style="font-size:.78rem;color:var(--adm-text-2);">Booking: <code>{{ b.booking_id }}</code></p>
+                  <form method="POST" action="{{ url_for('admin.reject_refund', booking_id=b.booking_id) }}">
+                    <div class="mb-3">
+                      <label class="form-label" style="font-size:.75rem;">Reason for rejection</label>
+                      <textarea name="reason" class="form-control form-control-sm" rows="3"
+                                placeholder="e.g. Show already started when cancelled" required
+                                style="border-radius:8px;font-size:.8rem;"></textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                      <button type="button" class="btn btn-sm btn-secondary flex-fill" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-sm btn-danger flex-fill">Reject</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            {% else %}
+              <span style="font-size:.72rem;color:var(--adm-text-3);">
+                {% if b.refund_status == 'APPROVED' %}Refund processed{% elif b.refund_status == 'REJECTED' %}Request closed{% else %}No action{% endif %}
+              </span>
+            {% endif %}
+          </td>
+        </tr>
+
+        <!-- Reason row if cancelled -->
+        {% if b.cancellation_reason %}
+        <tr style="background:rgba(0,0,0,.02);">
+          <td colspan="11" style="padding-left:28px;font-size:.72rem;color:var(--adm-text-3);padding-top:4px;padding-bottom:8px;">
+            📝 <strong>Reason:</strong> {{ b.cancellation_reason }}
+          </td>
+        </tr>
+        {% endif %}
+
+        {% else %}
+        <tr>
+          <td colspan="11" class="text-center py-5 text-muted">
+            <div style="font-size:2.5rem;margin-bottom:10px;">💸</div>
+            <div style="font-weight:600;">No refund requests found.</div>
+            <div style="font-size:.8rem;margin-top:4px;">Cancelled bookings will appear here.</div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

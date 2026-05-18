@@ -1,0 +1,748 @@
+{% extends "base.html" %}
+{% block title %}Select Seats — {{ show.movie.title }}{% endblock %}
+
+{% block head %}
+<style>
+/* ── Page ───────────────────────────────────── */
+.seat-page { background:#080b14; min-height:100vh; padding-bottom:90px; }
+
+/* ── Show strip ─────────────────────────────── */
+.show-strip {
+  background:linear-gradient(135deg,#0c1020 0%,#141a2e 100%);
+  border-bottom:1px solid rgba(59,130,246,.2);
+  padding:16px 0;
+}
+.show-strip .movie-title {
+  font-family:'Poppins',sans-serif;
+  font-weight:900; font-size:1.8rem; color:#fff;
+  letter-spacing:1px; line-height:1; margin:0;
+}
+.show-strip .theater-line { font-size:.8rem; color:rgba(255,255,255,.4); margin-top:4px; }
+.info-pill {
+  display:inline-flex; flex-direction:column; align-items:center;
+  padding:8px 16px; border-radius:10px;
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+}
+.info-pill .val { font-family:'Poppins',sans-serif; font-size:1.15rem; font-weight:800; color:#fff; line-height:1; }
+.info-pill .lbl { font-size:.58rem; color:rgba(255,255,255,.3); text-transform:uppercase; letter-spacing:.6px; margin-top:3px; }
+.info-pill.red .val { color:#3b82f6; }
+
+/* ── Guest notice ─────────────────────────── */
+.guest-notice {
+  background:rgba(59,130,246,.08); border:1px solid rgba(59,130,246,.2);
+  border-radius:10px; padding:10px 16px; margin-bottom:18px;
+  font-size:.82rem; color:rgba(255,255,255,.65);
+}
+.guest-notice a { color:#60a5fa; font-weight:600; }
+
+/* ── Seat map wrapper ───────────────────────── */
+.seat-map-card {
+  background:#0d1120; border:1px solid rgba(59,130,246,.12);
+  border-radius:18px; padding:24px 16px; overflow-x:auto;
+}
+
+/* ── Tier header ────────────────────────────── */
+.tier-hdr {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:14px;
+}
+.tier-hdr .t-name {
+  font-family:'Poppins',sans-serif; font-weight:800;
+  font-size:1.05rem; letter-spacing:1px;
+}
+.tier-hdr .t-price {
+  font-size:.68rem; font-weight:700; padding:2px 9px;
+  border-radius:5px; margin-left:8px;
+}
+.tier-hdr .t-count { font-size:.72rem; color:rgba(255,255,255,.3); }
+.tier-section { margin-bottom:30px; }
+
+/* ── Row ────────────────────────────────────── */
+.seat-row {
+  display:flex; align-items:center; gap:5px;
+  justify-content:center; margin-bottom:5px; flex-wrap:nowrap; overflow:visible;
+}
+.row-lbl {
+  width:18px; height:32px; display:flex; align-items:center;
+  justify-content:center; font-size:.62rem; font-weight:700;
+  color:rgba(255,255,255,.2); flex-shrink:0; font-family:'Poppins',sans-serif;
+}
+.aisle-gap { width:14px; flex-shrink:0; }
+
+/* ── Seat button ────────────────────────────── */
+.seat {
+  width:32px; height:32px; border-radius:6px; border:none;
+  font-size:.55rem; font-weight:700; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .13s; outline:none; user-select:none;
+  font-family:'Inter',sans-serif; letter-spacing:.2px; flex-shrink:0;
+}
+.seat:focus-visible { outline:2px solid #fff; }
+
+/* Recliner (Gold) */
+.s-recliner.avail  { background:rgba(245,158,11,.14); border:1.5px solid rgba(245,158,11,.5); color:#fbbf24; }
+.s-recliner.avail:hover { background:rgba(245,158,11,.38); transform:scale(1.08); }
+.s-recliner.sel    { background:#f59e0b; border:1.5px solid #f59e0b; color:#1a0900; transform:scale(1.05); box-shadow:0 4px 16px rgba(245,158,11,.5); }
+
+/* Prime (Blue) */
+.s-prime.avail  { background:rgba(99,179,237,.1); border:1.5px solid rgba(99,179,237,.4); color:#93c5fd; }
+.s-prime.avail:hover { background:rgba(99,179,237,.32); transform:scale(1.08); }
+.s-prime.sel    { background:#3b82f6; border:1.5px solid #3b82f6; color:#fff; transform:scale(1.05); box-shadow:0 4px 16px rgba(59,130,246,.5); }
+
+/* Classic (Green) */
+.s-classic.avail  { background:rgba(16,185,129,.1); border:1.5px solid rgba(16,185,129,.35); color:#6ee7b7; }
+.s-classic.avail:hover { background:rgba(16,185,129,.28); transform:scale(1.08); }
+.s-classic.sel    { background:#10b981; border:1.5px solid #10b981; color:#fff; transform:scale(1.05); box-shadow:0 4px 16px rgba(16,185,129,.5); }
+
+/* Sold */
+.seat.sold { background:rgba(255,255,255,.03); border:1.5px solid rgba(255,255,255,.07); color:rgba(255,255,255,.12); cursor:not-allowed; }
+
+/* Locked by another user (temporarily held) */
+.seat.locked-other {
+  background:rgba(251,146,60,.08); border:1.5px solid rgba(251,146,60,.45);
+  color:rgba(251,146,60,.55); cursor:not-allowed; position:relative;
+  animation: lockPulse 2s ease-in-out infinite;
+}
+@keyframes lockPulse {
+  0%,100% { border-color:rgba(251,146,60,.3); }
+  50%      { border-color:rgba(251,146,60,.75); box-shadow:0 0 6px rgba(251,146,60,.25); }
+}
+
+/* Locked by ME (my own pending lock) */
+.seat.locked-me {
+  background:rgba(59,130,246,.18); border:1.5px dashed rgba(59,130,246,.7);
+  color:#93c5fd; cursor:not-allowed;
+}
+
+/* ── Legend ─────────────────────────────────── */
+.legend { display:flex; gap:18px; justify-content:center; flex-wrap:wrap; margin-bottom:26px; }
+.leg-item { display:flex; align-items:center; gap:7px; font-size:.78rem; color:rgba(255,255,255,.5); font-family:'Inter',sans-serif; }
+.leg-box { width:20px; height:20px; border-radius:5px; }
+
+/* ── Screen (BOTTOM) ─────────────────────────── */
+.screen-bottom { text-align:center; margin-top:32px; }
+.screen-arc {
+  display:inline-block; width:min(460px,88%); height:7px;
+  background:linear-gradient(90deg,transparent,#3b82f6,#818cf8,#60a5fa,#818cf8,#3b82f6,transparent);
+  border-radius:0 0 60% 60% / 0 0 100% 100%;
+  box-shadow:0 0 28px rgba(59,130,246,.4);
+}
+.screen-lbl { font-size:.6rem; color:rgba(255,255,255,.25); letter-spacing:4px; margin-top:6px; text-transform:uppercase; font-family:'Poppins',sans-serif; }
+
+/* ── Summary panel ───────────────────────────── */
+.summary-panel {
+  background:#0d1120; border:1px solid rgba(255,255,255,.08);
+  border-radius:18px; padding:22px; position:sticky; top:80px;
+}
+.summary-panel .panel-title {
+  font-family:'Poppins',sans-serif; font-weight:800;
+  font-size:1.15rem; letter-spacing:1px; color:#fff; margin-bottom:18px;
+}
+.seat-tag {
+  display:inline-flex; align-items:center; gap:4px;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+  border-radius:6px; padding:3px 9px; font-size:.73rem; color:#fff;
+  font-weight:700; font-family:'Inter',sans-serif;
+}
+.seat-tag .rm { cursor:pointer; color:rgba(255,255,255,.35); margin-left:3px; font-size:.85rem; }
+.seat-tag .rm:hover { color:#3b82f6; }
+.sum-divider { border-color:rgba(255,255,255,.06); margin:14px 0; }
+.sum-row { display:flex; justify-content:space-between; margin-bottom:8px; font-size:.84rem; color:rgba(255,255,255,.45); font-family:'Inter',sans-serif; }
+.sum-row.total { font-family:'Poppins',sans-serif; font-weight:800; font-size:1.3rem; color:#fff; letter-spacing:.5px; }
+.sum-row.total span:last-child { color:#3b82f6; }
+
+/* ── Proceed button ─────────────────────────── */
+.btn-proceed {
+  width:100%; padding:14px; border:none; border-radius:12px;
+  background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+  color:#fff; font-family:'Poppins',sans-serif;
+  font-size:1.1rem; font-weight:800; letter-spacing:2px;
+  cursor:pointer; box-shadow:0 4px 20px rgba(59,130,246,.4);
+  transition:all .2s; margin-top:6px;
+}
+.btn-proceed:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 28px rgba(59,130,246,.5); }
+.btn-proceed:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+.secure-note { font-size:.67rem; color:rgba(255,255,255,.28); text-align:center; margin-top:9px; font-family:'Inter',sans-serif; }
+
+/* ── Mobile footer ───────────────────────────── */
+.mob-footer {
+  display:none; position:fixed; bottom:0; left:0; right:0;
+  background:#0d1120; border-top:1px solid rgba(255,255,255,.08);
+  padding:12px 18px; z-index:99; gap:12px;
+}
+@media(max-width:991px){
+  .mob-footer { display:flex; align-items:center; justify-content:space-between; }
+  .summary-panel { display:none; }
+}
+.mob-total { font-family:'Poppins',sans-serif; font-size:1.35rem; font-weight:800; color:#3b82f6; }
+.mob-sub   { font-size:.67rem; color:rgba(255,255,255,.3); }
+.btn-proceed-sm {
+  padding:11px 22px; border:none; border-radius:10px;
+  background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+  color:#fff; font-family:'Poppins',sans-serif;
+  font-size:1rem; font-weight:800; letter-spacing:1.5px;
+  cursor:pointer; white-space:nowrap;
+}
+.btn-proceed-sm:disabled { opacity:.4; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="seat-page">
+
+  <!-- Show info strip -->
+  <div class="show-strip">
+    <div class="container-xl">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+          <div class="movie-title">{{ show.movie.title }}</div>
+          <div class="theater-line"><i class="bi bi-geo-alt-fill me-1" style="color:#3b82f6;"></i>{{ show.theater.name }}, {{ show.theater.city }}</div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <div class="info-pill"><span class="val">{{ show.show_date_display }}</span><span class="lbl">Date</span></div>
+          <div class="info-pill"><span class="val">{{ show.start_time[:5] if show.start_time else '—' }}</span><span class="lbl">Showtime</span></div>
+          <div class="info-pill red"><span class="val">₹{{ show.price_per_ticket }}</span><span class="lbl">Base Price</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-xl py-4">
+
+    {% if not current_user.is_authenticated %}
+    <div class="guest-notice">
+      <i class="bi bi-info-circle-fill me-2"></i>
+      <strong>Browsing as guest.</strong> Select seats then
+      <a href="{{ url_for('auth.login', next=request.url) }}">log in</a> to book.
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+
+      <!-- ── SEAT MAP ── -->
+      <div class="col-lg-8">
+
+        <div class="seat-map-card">
+
+          <!-- Legend -->
+          <div class="legend">
+            <div class="leg-item"><div class="leg-box" style="background:rgba(245,158,11,.2);border:1.5px solid rgba(245,158,11,.5);"></div>Available</div>
+            <div class="leg-item"><div class="leg-box" style="background:#3b82f6;"></div>Selected</div>
+            <div class="leg-item"><div class="leg-box" style="background:rgba(251,146,60,.12);border:1.5px solid rgba(251,146,60,.5);"></div>Held by Others</div>
+            <div class="leg-item"><div class="leg-box" style="background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.08);"></div>Sold</div>
+          </div>
+          <!-- Seat locked indicator (shown when seats are selected) -->
+          <div id="seat-locked-notice" style="display:none;text-align:center;margin-bottom:12px;padding:7px 14px;border-radius:8px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);font-size:.78rem;color:rgba(110,231,183,.9);font-family:'Inter',sans-serif;">
+            <i class="bi bi-lock-fill me-1"></i> Your selected seats are locked for you — complete your booking anytime.
+          </div>
+
+          <!-- GOLD tier (TOP = back of hall) -->
+          <div class="tier-section">
+            <div class="tier-hdr">
+              <div>
+                <span class="t-name" style="color:#fbbf24;">✦ GOLD</span>
+                <span class="t-price" style="background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3);">+₹100</span>
+              </div>
+              <div class="t-count" id="recliner-avail"></div>
+            </div>
+            <div id="recliner-grid"></div>
+          </div>
+
+          <!-- SILVER tier (MIDDLE) -->
+          <div class="tier-section">
+            <div class="tier-hdr">
+              <div>
+                <span class="t-name" style="color:#93c5fd;">◈ SILVER</span>
+                <span class="t-price" style="background:rgba(59,130,246,.12);color:#93c5fd;border:1px solid rgba(59,130,246,.25);">+₹50</span>
+              </div>
+              <div class="t-count" id="prime-avail"></div>
+            </div>
+            <div id="prime-grid"></div>
+          </div>
+
+          <!-- GENERAL tier (BOTTOM = near screen) -->
+          <div class="tier-section" style="margin-bottom:0;">
+            <div class="tier-hdr">
+              <div>
+                <span class="t-name" style="color:#6ee7b7;">● GENERAL</span>
+                <span class="t-price" style="background:rgba(16,185,129,.08);color:#6ee7b7;border:1px solid rgba(16,185,129,.2);">Base Price</span>
+              </div>
+              <div class="t-count" id="classic-avail"></div>
+            </div>
+            <div id="classic-grid"></div>
+          </div>
+
+          <!-- SCREEN at BOTTOM -->
+          <div class="screen-bottom">
+            <div class="screen-arc"></div>
+            <div class="screen-lbl">◂ Screen This Way ▸</div>
+          </div>
+
+        </div><!-- /seat-map-card -->
+      </div>
+
+      <!-- ── BOOKING SUMMARY ── -->
+      <div class="col-lg-4">
+        <div class="summary-panel">
+          <div class="panel-title"><i class="bi bi-receipt me-2" style="color:#3b82f6;"></i>Booking Summary</div>
+
+          <div style="font-size:.7rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;font-family:'Poppins',sans-serif;">Selected Seats</div>
+          <div id="seat-tags" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;">
+            <span id="empty-msg" style="font-size:.8rem;color:rgba(255,255,255,.22);font-style:italic;font-family:'Inter',sans-serif;">None selected yet</span>
+          </div>
+
+          <hr class="sum-divider">
+          <div class="sum-row"><span>Seats selected</span><span id="cnt">0</span></div>
+          <div class="sum-row"><span>Base / seat</span><span>₹{{ show.price_per_ticket }}</span></div>
+          <div class="sum-row"><span>Tier surcharge</span><span id="sur">₹0</span></div>
+          <hr class="sum-divider">
+          <div class="sum-row total"><span>Total</span><span id="ttl">₹0.00</span></div>
+
+          <form id="bk-form" method="POST" action="{{ url_for('user.book_show_simple', show_id=show.show_id) }}">
+            <input type="hidden" name="seat_numbers" id="seat-nums">
+            <input type="hidden" name="num_tickets"  id="num-tix" value="0">
+            <input type="hidden" name="lock_session_id" id="lock-session-id" value="">
+            <button type="submit" class="btn-proceed" id="proc-btn" disabled>
+              Select Seats to Continue
+            </button>
+          </form>
+          <div class="secure-note"><i class="bi bi-shield-check me-1"></i>Secure checkout · Max 10 seats per booking</div>
+        </div>
+      </div>
+
+    </div><!-- /row -->
+  </div><!-- /container -->
+
+  <!-- Mobile sticky footer -->
+  <div class="mob-footer">
+    <div>
+      <div class="mob-total" id="ttl-m">₹0.00</div>
+      <div class="mob-sub"  id="cnt-m">0 seats selected</div>
+    </div>
+    {% if current_user.is_authenticated %}
+    <button class="btn-proceed-sm" id="proc-m" disabled onclick="document.getElementById('bk-form').submit()">Book Now</button>
+    {% else %}
+    <a href="{{ url_for('auth.login', next=request.url) }}" class="btn-proceed-sm">Login to Book</a>
+    {% endif %}
+  </div>
+
+</div><!-- /seat-page -->
+
+{% if not current_user.is_authenticated %}
+<div class="modal fade" id="loginModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:400px;">
+    <div class="modal-content" style="background:#0d1120;border:1px solid rgba(255,255,255,.1);border-radius:18px;">
+      <div class="modal-body p-4 text-center">
+        <div style="width:52px;height:52px;background:rgba(59,130,246,.12);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;"><i class="bi bi-lock-fill" style="font-size:1.4rem;color:#3b82f6;"></i></div>
+        <h5 style="font-family:'Poppins',sans-serif;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:1px;">Login to Book</h5>
+        <p style="color:rgba(255,255,255,.4);font-size:.83rem;margin-bottom:18px;">Sign in to complete your booking.</p>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('auth.login', next=request.url) }}" style="display:block;flex:1;padding:11px;text-align:center;border-radius:10px;text-decoration:none;font-size:.9rem;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;font-family:'Poppins',sans-serif;font-weight:800;letter-spacing:1px;">Login</a>
+          <a href="{{ url_for('auth.register') }}" style="display:block;flex:1;padding:11px;text-align:center;border-radius:10px;text-decoration:none;font-size:.9rem;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.65);font-family:'Inter',sans-serif;">Sign Up</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  var BASE     = {{ show.price_per_ticket|float }};
+  var MAX      = 10;
+  var SHOW_ID  = "{{ show.show_id }}";
+  var STATUS_URL = "/api/seats/" + SHOW_ID + "/status";
+  var LOCK_URL   = "/api/seats/" + SHOW_ID + "/lock";
+  var RELEASE_URL = "/api/seats/" + SHOW_ID + "/release";
+
+  /* ── Session ID: unique per browser tab, survives page refreshes ────────── */
+  var SESSION_ID = sessionStorage.getItem('seat_session_' + SHOW_ID);
+  if (!SESSION_ID) {
+    SESSION_ID = 'ss_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+    sessionStorage.setItem('seat_session_' + SHOW_ID, SESSION_ID);
+  }
+  // Wire hidden field
+  var lockSessionInput = document.getElementById('lock-session-id');
+  if (lockSessionInput) lockSessionInput.value = SESSION_ID;
+
+  /* ── Toast system ──────────────────────────────────────────────────────── */
+  function toast(msg, type){
+    var colors = {
+      info:    {bg:'#1e2d45',border:'rgba(59,130,246,.5)',  icon:'ℹ️'},
+      success: {bg:'#0f2d1f',border:'rgba(16,185,129,.5)',  icon:'✅'},
+      warning: {bg:'#2d1f0a',border:'rgba(245,158,11,.5)',  icon:'⚠️'},
+      danger:  {bg:'#2d0f0f',border:'rgba(239,68,68,.5)',   icon:'❌'},
+    };
+    var c = colors[type] || colors.info;
+    var t = document.createElement('div');
+    t.style.cssText = [
+      'position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px)',
+      'background:'+c.bg+';color:#fff;padding:12px 20px;border-radius:10px',
+      'font-size:.83rem;z-index:9999;border:1px solid '+c.border,
+      'font-family:Inter,sans-serif;display:flex;align-items:center;gap:9px',
+      'box-shadow:0 8px 32px rgba(0,0,0,.5);opacity:0;transition:all .25s;white-space:nowrap;max-width:90vw'
+    ].join(';');
+    t.innerHTML = '<span>'+c.icon+'</span><span>'+msg+'</span>';
+    document.body.appendChild(t);
+    requestAnimationFrame(function(){
+      t.style.opacity='1'; t.style.transform='translateX(-50%) translateY(0)';
+    });
+    setTimeout(function(){
+      t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(10px)';
+      setTimeout(function(){ t.remove(); }, 300);
+    }, 3200);
+  }
+
+  /* ── Loading overlay ────────────────────────────────────────────────────── */
+  var overlay = document.createElement('div');
+  overlay.id = 'seat-loading';
+  overlay.style.cssText = [
+    'display:none;position:fixed;inset:0;background:rgba(8,11,20,.85)',
+    'z-index:9998;flex-direction:column;align-items:center;justify-content:center;gap:16px'
+  ].join(';');
+  overlay.innerHTML = [
+    '<div style="width:52px;height:52px;border:3px solid rgba(59,130,246,.2);border-top-color:#3b82f6;',
+    'border-radius:50%;animation:spin .8s linear infinite;"></div>',
+    '<div id="loading-msg" style="color:rgba(255,255,255,.7);font-family:Poppins,sans-serif;font-size:1rem;letter-spacing:1px;">Processing...</div>',
+    '<style>@keyframes spin{to{transform:rotate(360deg)}}</style>'
+  ].join('');
+  document.body.appendChild(overlay);
+
+  function showLoading(msg){
+    document.getElementById('loading-msg').textContent = msg || 'Processing...';
+    overlay.style.display = 'flex';
+  }
+  function hideLoading(){ overlay.style.display = 'none'; }
+
+  /* ── Tiers config ───────────────────────────────────────────────────────── */
+  var TIERS = [
+    { rows:['A'],                     cols:14, cls:'s-recliner', sur:100, gid:'recliner-grid', aid:'recliner-avail' },
+    { rows:['B','C','D','E'],         cols:16, cls:'s-prime',    sur:50,  gid:'prime-grid',    aid:'prime-avail'   },
+    { rows:['F','G','H','I','J','K'], cols:16, cls:'s-classic',  sur:0,   gid:'classic-grid',  aid:'classic-avail' },
+  ];
+
+  /* ── State ──────────────────────────────────────────────────────────────── */
+  var BOOKED       = new Set({{ booked_seat_numbers | tojson }});
+  var LOCKED_OTHER = new Set();   // held by other sessions
+  var LOCKED_ME    = new Set();   // held by my session (should match `selected`)
+  var selected     = {};          // seats I have selected on this page
+
+  /* ── Lock timer removed — seats are locked on click, no expiry countdown ── */
+  function startLockTimer(isoExpiry){ /* no-op: no timer needed */ }
+  function updateLockTimer(){ /* no-op */ }
+  function stopLockTimer(){ /* no-op */ }
+
+  /* ── Build seat grid ────────────────────────────────────────────────────── */
+  TIERS.forEach(function(t){
+    var gel = document.getElementById(t.gid);
+    var ael = document.getElementById(t.aid);
+    var avail = 0;
+    t.rows.forEach(function(row){
+      var wrap = document.createElement('div');
+      wrap.className = 'seat-row';
+      var lbl = document.createElement('div');
+      lbl.className = 'row-lbl'; lbl.textContent = row;
+      wrap.appendChild(lbl);
+      var half = Math.ceil(t.cols / 2);
+      for(var c = 1; c <= t.cols; c++){
+        if(c === half + 1){
+          var a = document.createElement('div'); a.className = 'aisle-gap'; wrap.appendChild(a);
+        }
+        var lb   = row + c;
+        var sold = BOOKED.has(lb);
+        var btn  = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'seat ' + t.cls + ' ' + (sold ? 'sold' : 'avail');
+        btn.textContent = lb;
+        btn.dataset.lb  = lb;
+        btn.dataset.sur = t.sur;
+        btn.dataset.cls = t.cls;
+        btn.disabled    = sold;
+        btn.title       = lb + (sold ? ' (Sold)' : '');
+        if(!sold){
+          avail++;
+          (function(b, l, s){ b.addEventListener('click', function(){ tog(b, l, t.cls, s); }); })(btn, lb, t.sur);
+        }
+        wrap.appendChild(btn);
+      }
+      gel.appendChild(wrap);
+    });
+    ael.textContent = avail + ' available';
+  });
+
+  /* ── Mark a seat button with the given state ────────────────────────────── */
+  function setSeatState(lb, state) {
+    var btn = document.querySelector('[data-lb="' + lb + '"]');
+    if (!btn) return;
+    btn.classList.remove('avail', 'sel', 'sold', 'locked-other', 'locked-me');
+    btn.disabled = (state !== 'avail');
+    switch (state) {
+      case 'avail':
+        btn.classList.add('avail');
+        btn.title = lb;
+        break;
+      case 'sel':
+        btn.classList.add('sel');
+        btn.title = lb + ' (Selected)';
+        btn.disabled = false;
+        break;
+      case 'sold':
+        btn.classList.add('sold');
+        btn.title = lb + ' (Sold)';
+        break;
+      case 'locked-other':
+        btn.classList.add('locked-other');
+        btn.title = lb + ' (Held by another user)';
+        break;
+      case 'locked-me':
+        btn.classList.add('locked-me');
+        btn.title = lb + ' (Held by you)';
+        break;
+    }
+  }
+
+  /* ── Toggle seat selection ──────────────────────────────────────────────── */
+  function tog(btn, lb, cls, sur){
+    if (BOOKED.has(lb) || LOCKED_OTHER.has(lb)) {
+      toast('This seat is not available.', 'warning');
+      return;
+    }
+    if(selected[lb]){
+      // Deselect → release lock for this seat
+      delete selected[lb];
+      LOCKED_ME.delete(lb);
+      setSeatState(lb, 'avail');
+      releaseSeat(lb);
+    } else {
+      if(Object.keys(selected).length >= MAX){
+        toast('Maximum ' + MAX + ' seats per booking', 'warning');
+        return;
+      }
+      selected[lb] = {sur: sur};
+      setSeatState(lb, 'sel');
+      lockSeats();   // batch-lock all selected
+    }
+    refresh();
+  }
+
+  /* ── Call lock API ──────────────────────────────────────────────────────── */
+  var lockDebounceTimer = null;
+  function lockSeats(){
+    var seats = Object.keys(selected);
+    if (seats.length === 0) return;
+    clearTimeout(lockDebounceTimer);
+    lockDebounceTimer = setTimeout(function(){
+      fetch(LOCK_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ seats: seats, session_id: SESSION_ID }),
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (data.success) {
+          startLockTimer(data.expires_at);
+          seats.forEach(function(lb){ LOCKED_ME.add(lb); });
+        } else {
+          // Some seats conflicted — deselect them
+          (data.conflicts || []).forEach(function(lb){
+            delete selected[lb];
+            LOCKED_ME.delete(lb);
+            BOOKED.add(lb);
+            setSeatState(lb, 'sold');
+          });
+          if (data.conflicts && data.conflicts.length > 0) {
+            toast('Seat(s) ' + data.conflicts.join(', ') + ' are no longer available.', 'danger');
+            refresh();
+          }
+        }
+      })
+      .catch(function(){});
+    }, 300);   // 300 ms debounce
+  }
+
+  /* ── Call release API for a single seat ────────────────────────────────── */
+  function releaseSeat(lb){
+    fetch(RELEASE_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ session_id: SESSION_ID, seats: [lb] }),
+    }).catch(function(){});
+  }
+
+  /* ── Release all locks when page is left (tab close / navigate away) ────── */
+  window.addEventListener('beforeunload', function(){
+    if (Object.keys(selected).length > 0) {
+      // Use sendBeacon for reliable delivery on page close
+      var payload = JSON.stringify({ session_id: SESSION_ID });
+      navigator.sendBeacon(RELEASE_URL, new Blob([payload], {type:'application/json'}));
+    }
+  });
+
+  /* ── Refresh summary panel ──────────────────────────────────────────────── */
+  function refresh(){
+    var keys  = Object.keys(selected);
+    var n     = keys.length;
+    var surT  = keys.reduce(function(s, k){ return s + selected[k].sur; }, 0);
+    var total = BASE * n + surT;
+
+    var tags = document.getElementById('seat-tags');
+    tags.innerHTML = '';
+    if(n === 0){
+      var em = document.createElement('span');
+      em.id = 'empty-msg';
+      em.style.cssText = 'font-size:.8rem;color:rgba(255,255,255,.22);font-style:italic;font-family:Inter,sans-serif;';
+      em.textContent = 'None selected yet';
+      tags.appendChild(em);
+      stopLockTimer();
+    } else {
+      keys.forEach(function(lb){
+        var tag = document.createElement('span'); tag.className = 'seat-tag';
+        tag.innerHTML = lb + '<span class="rm" onclick="rmS(\'' + lb + '\')">×</span>';
+        tags.appendChild(tag);
+      });
+    }
+    // Show/hide the "seats locked" notice
+    var notice = document.getElementById('seat-locked-notice');
+    if(notice) notice.style.display = n > 0 ? 'block' : 'none';
+
+    document.getElementById('cnt').textContent  = n;
+    document.getElementById('sur').textContent  = '₹' + surT;
+    document.getElementById('ttl').textContent  = '₹' + total.toFixed(2);
+    document.getElementById('ttl-m').textContent = '₹' + total.toFixed(2);
+    document.getElementById('cnt-m').textContent = n + ' seat' + (n !== 1 ? 's' : '') + ' selected';
+    document.getElementById('proc-btn').disabled = (n === 0);
+    document.getElementById('proc-btn').textContent = n === 0 ? 'Select Seats to Continue' : 'Proceed to Payment →';
+    var mb = document.getElementById('proc-m'); if(mb) mb.disabled = (n === 0);
+    document.getElementById('seat-nums').value = keys.join(', ');
+    document.getElementById('num-tix').value   = n;
+  }
+
+  window.rmS = function(lb){
+    if (selected[lb]) {
+      delete selected[lb];
+      LOCKED_ME.delete(lb);
+      setSeatState(lb, 'avail');
+      releaseSeat(lb);
+      refresh();
+    }
+  };
+
+  /* ── Real-time status polling every 5 s ─────────────────────────────────── */
+  function pollStatus(){
+    fetch(STATUS_URL + '?session_id=' + encodeURIComponent(SESSION_ID))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var newBooked       = new Set(data.booked       || []);
+        var newLockedOthers = new Set(data.locked_by_others || []);
+        var newLockedMe     = new Set(data.locked_by_me || []);
+        var justSold        = [];
+        var justLocked      = [];
+        var justUnlocked    = [];
+
+        // ── Handle newly booked seats ──────────────────────────────────────
+        newBooked.forEach(function(lb){
+          if (!BOOKED.has(lb)) {
+            BOOKED.add(lb);
+            LOCKED_OTHER.delete(lb);
+            LOCKED_ME.delete(lb);
+            var btn = document.querySelector('[data-lb="' + lb + '"]');
+            if (btn && !btn.classList.contains('sold')) {
+              if (selected[lb]) { delete selected[lb]; justSold.push(lb); }
+              setSeatState(lb, 'sold');
+            }
+          }
+        });
+
+        // ── Handle newly locked-by-others ─────────────────────────────────
+        newLockedOthers.forEach(function(lb){
+          if (!BOOKED.has(lb) && !selected[lb] && !LOCKED_OTHER.has(lb)) {
+            LOCKED_OTHER.add(lb);
+            justLocked.push(lb);
+            setSeatState(lb, 'locked-other');
+          }
+        });
+
+        // ── Clear locks-by-others that are now gone ────────────────────────
+        LOCKED_OTHER.forEach(function(lb){
+          if (!newLockedOthers.has(lb) && !newBooked.has(lb)) {
+            LOCKED_OTHER.delete(lb);
+            justUnlocked.push(lb);
+            if (!selected[lb]) setSeatState(lb, 'avail');
+          }
+        });
+
+        // ── Update my locks from server (in case of expiry) ────────────────
+        LOCKED_ME.forEach(function(lb){
+          if (!newLockedMe.has(lb) && selected[lb]) {
+            // My lock disappeared on server — likely expired
+            delete selected[lb];
+            LOCKED_ME.delete(lb);
+            setSeatState(lb, 'avail');
+            justSold.push(lb);
+          }
+        });
+
+        if (justSold.length > 0){
+          toast('Seat(s) ' + justSold.join(', ') + ' just got booked by someone else!', 'danger');
+          refresh();
+        }
+        if (justLocked.length > 0){
+          toast('Seat(s) ' + justLocked.join(', ') + ' are being held by another user.', 'warning');
+        }
+        if (justUnlocked.length > 0){
+          toast('Seat(s) ' + justUnlocked.join(', ') + ' are available again!', 'success');
+        }
+
+        // ── Update available counts ────────────────────────────────────────
+        TIERS.forEach(function(t){
+          var avail = 0;
+          t.rows.forEach(function(row){
+            for(var c = 1; c <= t.cols; c++){
+              var lb = row + c;
+              if (!newBooked.has(lb) && !newLockedOthers.has(lb)) avail++;
+            }
+          });
+          var ael = document.getElementById(t.aid);
+          if(ael) ael.textContent = avail + ' available';
+        });
+      })
+      .catch(function(){});  // silent fail — no alert on network hiccup
+  }
+
+  // Poll every 5 seconds
+  setInterval(pollStatus, 5000);
+  // Initial poll on load to pick up any locks from a previous tab
+  setTimeout(pollStatus, 800);
+
+  /* ── Booking form submit — show loading overlay ─────────────────────────── */
+  document.getElementById('bk-form').addEventListener('submit', function(e){
+    {% if not current_user.is_authenticated %}
+    e.preventDefault();
+    new bootstrap.Modal(document.getElementById('loginModal')).show();
+    return;
+    {% endif %}
+    var keys = Object.keys(selected);
+    if(keys.length === 0){ e.preventDefault(); return; }
+    showLoading('Locking ' + keys.length + ' seat' + (keys.length > 1 ? 's' : '') + '…');
+  });
+
+  var procM = document.getElementById('proc-m');
+  if(procM){
+    procM.addEventListener('click', function(){
+      var keys = Object.keys(selected);
+      if(keys.length > 0) showLoading('Booking…');
+    });
+  }
+
+  /* ── Flash server-side messages as toasts ───────────────────────────────── */
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    toast("{{ msg | e }}", "{{ cat }}");
+  {% endfor %}
+  {% endwith %}
+
+})();
+</script>
+{% endblock %}

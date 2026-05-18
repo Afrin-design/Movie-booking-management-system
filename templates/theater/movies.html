@@ -1,0 +1,135 @@
+{% extends "theater/base_owner.html" %}
+{% block title %}Movies – Owner Dashboard{% endblock %}
+{% block page_title %}🎬 Movies{% endblock %}
+
+{% block content %}
+<style>
+.mv-table th { font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;
+               color:var(--adm-primary);font-weight:700;padding:12px 14px;
+               white-space:nowrap;border-bottom:2px solid var(--adm-border); }
+.mv-table td { font-size:.83rem;padding:13px 14px;vertical-align:middle;
+               border-bottom:1px solid var(--adm-border);color:var(--adm-text-1); }
+.mv-table tbody tr:last-child td { border-bottom:none; }
+.mv-table tbody tr:hover td { background:var(--adm-hover); }
+.genre-pill { display:inline-block;padding:2px 10px;border-radius:20px;
+              font-size:.71rem;font-weight:700;
+              background:rgba(59,130,246,.12);color:#3B82F6;
+              border:1px solid rgba(59,130,246,.2); }
+.rating-star { color:#F59E0B;font-weight:700;font-size:.82rem; }
+.action-btn  { display:inline-flex;align-items:center;gap:4px;padding:4px 13px;
+               border-radius:8px;font-size:.74rem;font-weight:600;
+               text-decoration:none;border:1px solid transparent;
+               cursor:pointer;transition:all .15s; }
+.btn-edit  { background:rgba(59,130,246,.12);color:#3B82F6;border-color:rgba(59,130,246,.25); }
+.btn-edit:hover { background:#3B82F6;color:#fff;border-color:#3B82F6; }
+.srch-bar { background:var(--adm-card-bg);border:1px solid var(--adm-border);
+             color:var(--adm-text-1);border-radius:10px;padding:8px 14px;
+             font-size:.84rem;width:260px; }
+.srch-bar::placeholder { color:var(--adm-text-3); }
+.srch-bar:focus { outline:none;border-color:var(--adm-primary);
+                  box-shadow:0 0 0 3px rgba(59,130,246,.15); }
+.add-btn  { background:var(--adm-primary);color:#fff !important;border:none;
+             border-radius:10px;padding:8px 18px;font-size:.84rem;font-weight:600;
+             text-decoration:none;display:inline-flex;align-items:center;
+             gap:6px;transition:opacity .15s; }
+.add-btn:hover { opacity:.88; }
+.pg-btn  { border:1px solid var(--adm-border);background:var(--adm-card-bg);
+            color:var(--adm-text-2);padding:5px 14px;border-radius:8px;
+            font-size:.78rem;text-decoration:none;transition:all .15s; }
+.pg-btn:hover,.pg-btn.active { background:var(--adm-primary);color:#fff;
+                                border-color:var(--adm-primary); }
+.desc-clamp { max-width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+              color:var(--adm-text-3);font-size:.73rem;margin-top:2px; }
+</style>
+
+<!-- Header -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h5 class="fw-bold mb-0" style="font-family:'Poppins',sans-serif;font-size:1.05rem;">🎬 All Movies</h5>
+    <p class="mb-0" style="font-size:.77rem;color:var(--adm-text-3);margin-top:2px;">
+      {{ movies|length }} movie(s) with shows at your theaters
+    </p>
+  </div>
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <form method="GET" action="{{ url_for('owner.owner_movies') }}" class="d-flex gap-2">
+      <input type="text" name="q" value="{{ q_search }}" class="srch-bar" placeholder="🔍  Search movies…">
+      {% if q_search %}
+      <a href="{{ url_for('owner.owner_movies') }}" class="pg-btn d-flex align-items-center" style="padding:8px 12px;">✕</a>
+      {% endif %}
+    </form>
+    <a href="{{ url_for('owner.owner_add_movie') }}"  class="btn btn-primary btn-sm" style="border-radius:8px;font-weight:700;padding:6px 16px;">➕ Add Movie</a>
+  
+  </div>
+</div>
+
+<!-- Table -->
+<div class="adm-card" style="overflow:hidden;">
+  <div class="table-responsive">
+    <table class="table mv-table align-middle mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>🎬 Title</th>
+          <th>🎭 Genre</th>
+          <th>🌐 Language</th>
+          <th>⏱ Dur.</th>
+          <th>⭐ Rating</th>
+          <th>📅 Release</th>
+          <th>🎭 Shows</th>
+          <th>⚙ Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for movie in movies %}
+        <tr>
+          <td><code style="color:var(--adm-text-3);font-size:.71rem;">{{ movie.movie_id }}</code></td>
+          <td style="min-width:180px;">
+            <div class="fw-semibold" style="font-size:.85rem;">{{ movie.title }}</div>
+            {% if movie.description %}<div class="desc-clamp" title="{{ movie.description }}">{{ movie.description }}</div>{% endif %}
+          </td>
+          <td>{% if movie.genre %}<span class="genre-pill">{{ movie.genre }}</span>{% else %}<span style="color:var(--adm-text-3);">—</span>{% endif %}</td>
+          <td style="font-size:.8rem;color:var(--adm-text-2);">{{ movie.language or '—' }}</td>
+          <td style="font-size:.8rem;color:var(--adm-text-2);white-space:nowrap;">{{ (movie.duration|string ~ 'm') if movie.duration else '—' }}</td>
+          <td>{% if movie.rating %}<span class="rating-star">★ {{ '%.1f'|format(movie.rating) }}</span>{% else %}—{% endif %}</td>
+          <td style="font-size:.79rem;color:var(--adm-text-2);white-space:nowrap;">
+            {{ movie.release_date.strftime('%d %b %Y') if movie.release_date else '—' }}
+          </td>
+          <td>
+            <span style="background:rgba(16,185,129,.12);color:#10B981;border:1px solid rgba(16,185,129,.25);border-radius:20px;padding:2px 10px;font-size:.71rem;font-weight:700;">
+              🎭 {{ show_counts.get(movie.movie_id, 0) }}
+            </span>
+          </td>
+          <td>
+            <a href="{{ url_for('owner.owner_edit_movie', movie_id=movie.movie_id) }}" class="action-btn btn-edit">✏️ Edit</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" class="text-center py-5" style="color:var(--adm-text-3);">
+            <div style="font-size:2.8rem;margin-bottom:10px;">🎬</div>
+            <div class="fw-semibold">{% if q_search %}No movies match "{{ q_search }}"{% else %}No movies yet{% endif %}</div>
+            <div style="font-size:.78rem;margin-top:5px;">Add movies so they appear in your show schedule.</div>
+            <a href="{{ url_for('owner.owner_add_movie') }}" class="add-btn d-inline-flex mt-3">➕ Add First Movie</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if pagination and pagination.pages > 1 %}
+<div class="d-flex align-items-center justify-content-between mt-3 flex-wrap gap-2">
+  <span style="font-size:.76rem;color:var(--adm-text-3);">Page {{ pagination.page }} of {{ pagination.pages }} · {{ pagination.total }} total</span>
+  <div class="d-flex gap-1 flex-wrap">
+    {% if pagination.has_prev %}<a href="{{ url_for('owner.owner_movies', page=pagination.prev_num, q=q_search) }}" class="pg-btn">← Prev</a>{% endif %}
+    {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+      {% if p %}<a href="{{ url_for('owner.owner_movies', page=p, q=q_search) }}" class="pg-btn {{ 'active' if p == pagination.page }}">{{ p }}</a>
+      {% else %}<span class="pg-btn" style="pointer-events:none;">…</span>{% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}<a href="{{ url_for('owner.owner_movies', page=pagination.next_num, q=q_search) }}" class="pg-btn">Next →</a>{% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

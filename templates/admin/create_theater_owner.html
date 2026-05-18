@@ -1,0 +1,222 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}{{ 'Edit' if owner else 'Create' }} Theater Owner – Admin{% endblock %}
+{% block page_title %}{{ 'Edit' if owner else 'Create' }} Theater Owner{% endblock %}
+
+{% block head %}
+<style>
+.form-card {
+  background: #fff;
+  border: 1px solid #E8EDF2;
+  border-radius: 16px;
+  padding: 28px 30px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.05);
+}
+.form-label { font-weight: 600; font-size: 0.85rem; color: #374151; margin-bottom: 5px; }
+.form-control, .form-select {
+  border-radius: 9px;
+  border: 1.5px solid #E2E8F0;
+  font-size: 0.88rem;
+  padding: 9px 12px;
+  background: #F8FAFC;
+  transition: border .15s, box-shadow .15s;
+}
+.form-control:focus, .form-select:focus {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+  background: #fff;
+}
+.input-group-text {
+  background: #F8FAFC;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 9px 0 0 9px;
+  border-right: none;
+  color: #64748B;
+}
+.input-group .form-control { border-left: none; border-radius: 0 9px 9px 0; }
+.input-group .form-select  { border-left: none; border-radius: 0 9px 9px 0; }
+
+.brand-option-card {
+  border: 2px solid #E2E8F0;
+  border-radius: 11px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #F8FAFC;
+}
+.brand-option-card:hover { border-color: #93C5FD; background: #EFF6FF; }
+.brand-option-card.selected { border-color: #3B82F6; background: #EFF6FF; }
+.brand-option-card input[type="radio"] { display: none; }
+.brand-icon-wrap {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  background: linear-gradient(135deg, #DBEAFE, #EDE9FE);
+}
+.brand-name-label { font-weight: 600; font-size: 0.88rem; color: #1e293b; }
+.brand-count-label { font-size: 0.75rem; color: #64748B; }
+.brand-owned-badge {
+  margin-left: auto;
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 7px;
+}
+
+.info-box {
+  background: linear-gradient(135deg, #EFF6FF, #F0F9FF);
+  border: 1.5px solid rgba(59,130,246,.2);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.info-box .info-text { font-size: 0.83rem; color: #374151; line-height: 1.6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6 col-xl-5">
+
+    <!-- Back + Title -->
+    <div class="d-flex align-items-center gap-2 mb-4">
+      <a href="{{ url_for('theater_owners.theater_owners') }}"
+         class="btn btn-sm btn-outline-secondary" style="border-radius:8px;">
+        ← Back
+      </a>
+      <h5 class="fw-bold mb-0" style="font-family:'Poppins',sans-serif;">
+        {{ '✏️ Edit Owner' if owner else '🏟️ Create Theater Owner' }}
+      </h5>
+    </div>
+
+    <!-- Info Box -->
+    <div class="info-box">
+      <div style="font-size:1.3rem;flex-shrink:0;margin-top:2px;">ℹ️</div>
+      <div class="info-text">
+        {% if owner %}
+          Update this owner's details. Changing the brand will
+          <strong>automatically reassign</strong> all theaters under the new brand to this owner.
+        {% else %}
+          A temporary password will be <strong>auto-generated</strong> and emailed to the owner.
+          Each brand can only have <strong>one owner</strong>.
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="form-card">
+      <form method="POST" novalidate>
+
+        <!-- Name -->
+        <div class="mb-3">
+          <label class="form-label">👤 Full Name <span class="text-danger">*</span></label>
+          <div class="input-group">
+            <span class="input-group-text">👤</span>
+            <input type="text" name="name" class="form-control"
+                   placeholder="Ravi Kumar"
+                   value="{{ owner.name if owner else '' }}" required>
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div class="mb-3">
+          <label class="form-label">✉️ Email Address <span class="text-danger">*</span></label>
+          <div class="input-group">
+            <span class="input-group-text">✉️</span>
+            <input type="email" name="email" class="form-control"
+                   placeholder="owner@theater.com"
+                   value="{{ owner.email if owner else '' }}" required>
+          </div>
+        </div>
+
+        <!-- Phone -->
+        <div class="mb-4">
+          <label class="form-label">📞 Phone Number</label>
+          <div class="input-group">
+            <span class="input-group-text">📞</span>
+            <input type="tel" name="phone" class="form-control"
+                   placeholder="9876543210"
+                   value="{{ owner.phone_number if owner else '' }}">
+          </div>
+        </div>
+
+        <!-- Brand Selection -->
+        <div class="mb-4">
+          <label class="form-label">🎭 Assign Brand <span class="text-muted fw-normal">(One owner per brand)</span></label>
+
+          <div id="brand-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <!-- No Brand option -->
+            <label class="brand-option-card {{ 'selected' if not owner or not owner.brand_id }}"
+                   onclick="selectBrand(this, '')">
+              <input type="radio" name="brand_id" value=""
+                     {{ 'checked' if not owner or not owner.brand_id }}>
+              <div class="brand-icon-wrap">➖</div>
+              <div>
+                <div class="brand-name-label">No Brand</div>
+                <div class="brand-count-label">Unassigned</div>
+              </div>
+            </label>
+
+            {% for brand in brands %}
+            {% set is_selected = owner and owner.brand_id == brand.id %}
+            {% set other_owner = brand.owners|selectattr('user_id', 'ne', (owner.user_id if owner else ''))|list|first %}
+            <label class="brand-option-card {{ 'selected' if is_selected }}"
+                   onclick="selectBrand(this, '{{ brand.id }}')">
+              <input type="radio" name="brand_id" value="{{ brand.id }}"
+                     {{ 'checked' if is_selected }}
+                     {{ 'disabled' if other_owner and not is_selected }}>
+              <div class="brand-icon-wrap">🎭</div>
+              <div>
+                <div class="brand-name-label">{{ brand.brand_name }}</div>
+                <div class="brand-count-label">{{ brand.theater_count }} theaters</div>
+              </div>
+              {% if other_owner and not is_selected %}
+              <span class="brand-owned-badge" title="Managed by {{ other_owner.name }}">
+                Taken
+              </span>
+              {% endif %}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary px-4"
+                  style="border-radius:9px;font-weight:700;background:linear-gradient(135deg,#3B82F6,#6366F1);border:none;">
+            {{ '💾 Save Changes' if owner else '🏟️ Create Owner' }}
+          </button>
+          <a href="{{ url_for('theater_owners.theater_owners') }}"
+             class="btn btn-outline-secondary" style="border-radius:9px;">
+            Cancel
+          </a>
+        </div>
+
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function selectBrand(label, val) {
+  // Don't select taken brands
+  const radio = label.querySelector('input[type="radio"]');
+  if (radio && radio.disabled) return;
+
+  document.querySelectorAll('.brand-option-card').forEach(l => l.classList.remove('selected'));
+  label.classList.add('selected');
+
+  // Update the radio
+  document.querySelectorAll('input[name="brand_id"]').forEach(r => r.checked = false);
+  if (radio) radio.checked = true;
+}
+</script>
+{% endblock %}

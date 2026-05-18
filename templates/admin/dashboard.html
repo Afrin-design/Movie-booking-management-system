@@ -1,0 +1,257 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Overview{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- ── Welcome Banner ─────────────────────────────────────────── -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h4 class="fw-bold mb-1" style="font-family:'Poppins',sans-serif;color:var(--adm-text);font-size:1.3rem;">
+      Welcome back, {{ current_user.name.split()[0] }} 👋
+    </h4>
+    <p class="mb-0" style="color:var(--adm-text-3);font-size:.84rem;">Here's what's happening with CineHub today.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('admin.add_movie') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
+      ➕ Add Movie
+    </a>
+    <a href="{{ url_for('admin.add_theater') }}" class="btn btn-ghost btn-sm d-flex align-items-center gap-2">
+      🏟️ Add Theater
+    </a>
+  </div>
+</div>
+
+<!-- ── Stat Cards ─────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <!-- Movies -->
+  <div class="col-6 col-md-4 col-xl-3">
+    <a href="{{ url_for('admin.movies') }}" class="text-decoration-none">
+      <div class="stat-card blue">
+        <div class="stat-icon si-blue" style="font-size:1.3rem;">🎬</div>
+        <div class="stat-label">Total Movies</div>
+        <div class="stat-value">{{ "{:,}".format(stats.movies) }}</div>
+        <span class="stat-delta up"><i class="bi bi-arrow-up-short"></i>Active</span>
+      </div>
+    </a>
+  </div>
+  <!-- Theaters -->
+  <div class="col-6 col-md-4 col-xl-3">
+    <a href="{{ url_for('admin.theaters') }}" class="text-decoration-none">
+      <div class="stat-card green">
+        <div class="stat-icon si-green" style="font-size:1.3rem;">🏟️</div>
+        <div class="stat-label">Theaters</div>
+        <div class="stat-value">{{ "{:,}".format(stats.theaters) }}</div>
+        <span class="stat-delta up"><i class="bi bi-arrow-up-short"></i>Registered</span>
+      </div>
+    </a>
+  </div>
+  <!-- Active Customers (users with real password) -->
+  <div class="col-6 col-md-4 col-xl-3">
+    <a href="{{ url_for('admin.users') }}" class="text-decoration-none">
+      <div class="stat-card amber">
+        <div class="stat-icon si-amber" style="font-size:1.3rem;">👥</div>
+        <div class="stat-label">Active Customers</div>
+        <div class="stat-value">{{ "{:,}".format(stats.active_users) }}</div>
+        <span class="stat-delta up"><i class="bi bi-arrow-up-short"></i>With login</span>
+      </div>
+    </a>
+  </div>
+  <!-- Bookings from real users -->
+  <div class="col-6 col-md-4 col-xl-3">
+    <div class="stat-card">
+      <div class="stat-icon si-purple" style="background:#F5F3FF;font-size:1.3rem;">🎟️</div>
+      <div class="stat-label">Real Bookings</div>
+      <div class="stat-value">{{ "{:,}".format(stats.real_bookings) }}</div>
+      <span class="stat-delta up"><i class="bi bi-arrow-up-short"></i>App users only</span>
+    </div>
+  </div>
+  <!-- Shows -->
+  <div class="col-6 col-md-4 col-xl-3">
+    <a href="{{ url_for('admin.shows') }}" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="stat-icon si-teal" style="font-size:1.3rem;">🎭</div>
+        <div class="stat-label">Active Shows</div>
+        <div class="stat-value">{{ "{:,}".format(stats.shows) }}</div>
+        <span class="stat-delta up"><i class="bi bi-arrow-up-short"></i>Scheduled</span>
+      </div>
+    </a>
+  </div>
+  <!-- Owners -->
+  <div class="col-6 col-md-4 col-xl-3">
+    <a href="{{ url_for('admin.users', role='theater_owner') }}" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="stat-icon si-blue" style="font-size:1.3rem;">👑</div>
+        <div class="stat-label">Theater Owners</div>
+        <div class="stat-value">{{ "{:,}".format(stats.owners) }}</div>
+        <span class="stat-delta neutral"><i class="bi bi-dash"></i>Partners</span>
+      </div>
+    </a>
+  </div>
+  <!-- Paid Bookings -->
+  <div class="col-6 col-md-4 col-xl-3">
+    <div class="stat-card green">
+      <div class="stat-icon si-green" style="font-size:1.3rem;">💳</div>
+      <div class="stat-label">Paid Bookings</div>
+      <div class="stat-value">{{ "{:,}".format(stats.payments) }}</div>
+      <span class="stat-delta up"><i class="bi bi-arrow-up-short"></i>Completed</span>
+    </div>
+  </div>
+  <!-- Revenue -->
+  <div class="col-6 col-md-4 col-xl-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#3B82F6,#1D4ED8);border:none;">
+      <div class="stat-icon" style="background:rgba(255,255,255,.2);font-size:1.3rem;">₹</div>
+      <div class="stat-label" style="color:rgba(255,255,255,.75);">Total Revenue</div>
+      <div class="stat-value" style="color:#fff;">₹{{ "{:,.0f}".format(stats.revenue) }}</div>
+      <span class="stat-delta" style="background:rgba(255,255,255,.15);color:#fff;"><i class="bi bi-arrow-up-short"></i>Lifetime</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Charts Row ─────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-7">
+    <div class="adm-card h-100">
+      <div class="adm-card-header">
+        <span class="adm-card-title">📈 Monthly Bookings</span>
+        <select class="adm-select" id="chartTypeSelect">
+          <option value="bar">Bar Chart</option>
+          <option value="line">Line Chart</option>
+        </select>
+      </div>
+      <div class="adm-card-body">
+        <canvas id="monthlyChart" height="155"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="adm-card h-100">
+      <div class="adm-card-header">
+        <span class="adm-card-title">🥧 Revenue by Genre</span>
+      </div>
+      <div class="adm-card-body">
+        {% if genre_revenue %}
+          {% set max_rev = genre_revenue[0][1] | float %}
+          {% for genre, rev in genre_revenue[:7] %}
+          <div class="mb-3">
+            <div class="d-flex justify-content-between mb-1">
+              <span style="font-size:.8rem;font-weight:600;color:var(--adm-text);">{{ genre or 'Unknown' }}</span>
+              <span style="font-size:.8rem;color:var(--adm-text-3);">₹{{ "{:,.0f}".format(rev | float) }}</span>
+            </div>
+            <div class="progress" style="height:7px;">
+              <div class="progress-bar" style="width:{{ ((rev | float) / max_rev * 100) | round(1) }}%;"></div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-5" style="color:var(--adm-text-3);">
+            <i class="bi bi-bar-chart-line" style="font-size:2rem;display:block;margin-bottom:8px;"></i>
+            No payment data yet.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Recent Bookings ────────────────────────────────────────── -->
+<div class="adm-card">
+  <div class="adm-card-header">
+    <span class="adm-card-title">🕐 Recent Bookings</span>
+
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Booking ID</th>
+          <th>User</th>
+          <th>Movie</th>
+          <th>Date</th>
+          <th>Tickets</th>
+          <th>Amount</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in recent_bookings %}
+        <tr>
+          <td><code style="font-size:.78rem;color:var(--adm-blue);">{{ b.booking_id }}</code></td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#1D4ED8);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.7rem;font-weight:700;flex-shrink:0;">
+                {{ (b.user.name[0] if b.user else '?').upper() }}
+              </div>
+              <span style="font-size:.84rem;font-weight:600;">{{ b.user.name if b.user else b.user_id }}</span>
+            </div>
+          </td>
+          <td style="font-size:.84rem;">{{ b.show.movie.title if b.show and b.show.movie else '—' }}</td>
+          <td style="font-size:.82rem;">{{ b.booking_date.strftime('%d %b %Y') if b.booking_date else '—' }}</td>
+          <td class="text-center"><span class="badge bg-secondary">{{ b.total_tickets }}</span></td>
+          <td style="font-size:.84rem;font-weight:600;">
+            {% if b.total_amount %}₹{{ "{:,.0f}".format(b.total_amount) }}{% else %}—{% endif %}
+          </td>
+          <td>
+            {% if b.payment_status == 'Completed' %}<span class="badge bg-success">Completed</span>
+            {% elif b.payment_status == 'Pending' %}<span class="badge bg-warning">Pending</span>
+            {% else %}<span class="badge bg-danger">{{ b.payment_status }}</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center py-5" style="color:var(--adm-text-3);">
+          <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No bookings yet.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script id="monthly-data" type="application/json">{{ monthly_bookings_json | tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const raw = JSON.parse(document.getElementById("monthly-data").textContent || "[]");
+let myChart;
+function buildChart(type) {
+  const ctx = document.getElementById("monthlyChart").getContext("2d");
+  if (myChart) myChart.destroy();
+  myChart = new Chart(ctx, {
+    type: type,
+    data: {
+      labels: raw.map(d => d.month),
+      datasets: [{
+        label: "Bookings",
+        data: raw.map(d => d.count),
+        backgroundColor: type === 'bar' ? "rgba(59,130,246,.75)" : "rgba(59,130,246,.12)",
+        borderColor: "#3B82F6",
+        borderWidth: 2,
+        borderRadius: type === 'bar' ? 5 : 0,
+        fill: type === 'line',
+        tension: 0.4,
+        pointBackgroundColor: "#3B82F6",
+        pointRadius: type === 'line' ? 4 : 0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: "rgba(0,0,0,.05)" }, ticks: { color: "#94A3B8" } },
+        x: { grid: { display: false }, ticks: { color: "#94A3B8" } }
+      }
+    }
+  });
+}
+if (raw.length) {
+  buildChart('bar');
+  document.getElementById("chartTypeSelect")?.addEventListener("change", e => buildChart(e.target.value));
+} else {
+  document.getElementById("monthlyChart").parentElement.innerHTML = '<div class="text-center py-4" style="color:#94A3B8;"><i class="bi bi-bar-chart-line" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No booking data yet.</div>';
+}
+</script>
+{% endblock %}

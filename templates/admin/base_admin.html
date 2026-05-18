@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>CineHub · {% block title %}Admin Dashboard{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_sidebar.css') }}"/>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body.admin-body, body.admin-body * { font-family: 'Inter', sans-serif !important; }
+    body.admin-body h1,body.admin-body h2,body.admin-body h3,
+    body.admin-body h4,body.admin-body h5,body.admin-body h6,
+    body.admin-body .stat-value,body.admin-body .adm-card-title,
+    body.admin-body .sb-brand,body.admin-body .topbar-title,
+    body.admin-body .section-title,body.admin-body .fw-bold {
+      font-family: 'Poppins', sans-serif !important;
+      font-weight: 700 !important;
+    }
+    body.admin-body .stat-value { font-size: 1.75rem !important; font-weight: 700 !important; }
+
+    /* ── Global table standards for all admin/owner pages ── */
+    .admin-body .table thead tr {
+      background: #EFF6FF !important;
+      border-bottom: 2px solid #BFDBFE !important;
+    }
+    .admin-body .table thead th {
+      color: #1D4ED8 !important;
+      font-size: .75rem !important;
+      font-weight: 700 !important;
+      text-transform: uppercase !important;
+      letter-spacing: .06em !important;
+      padding: 12px 16px !important;
+      white-space: nowrap !important;
+      background: transparent !important;
+      border: none !important;
+    }
+    .admin-body .table tbody td {
+      padding: 12px 16px !important;
+      vertical-align: middle !important;
+      border-bottom: 1px solid #F1F5F9 !important;
+      color: #1E293B !important;
+    }
+    .admin-body .table tbody tr:hover td { background: #F8FAFC !important; }
+    .admin-body .adm-card {
+      background: #fff !important;
+      border: 1px solid #E2E8F0 !important;
+      border-radius: 14px !important;
+      overflow: hidden !important;
+      margin-bottom: 20px !important;
+      box-shadow: 0 2px 8px rgba(0,0,0,.05) !important;
+    }
+    .admin-body .adm-card-header {
+      padding: 14px 18px !important;
+      border-bottom: 1px solid #E2E8F0 !important;
+      background: #FAFBFC !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+    }
+    .admin-body .admin-content { padding: 24px !important; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body class="admin-body">
+<div class="sb-overlay" id="sb-overlay"></div>
+<div class="admin-wrapper">
+
+  <!-- ═══ SIDEBAR ═══════════════════════════════════════════ -->
+  <nav class="admin-sidebar" id="admin-sidebar">
+    <a class="sb-brand" href="{{ url_for('admin.dashboard') }}">
+      <div class="brand-icon"><i class="bi bi-film" style="color:#fff;"></i></div>
+      Cine<span>Hub</span>
+    </a>
+
+    <ul class="sb-nav mt-2">
+      <li class="sb-section-label">Overview</li>
+      <li>
+        <a href="{{ url_for('admin.dashboard') }}" class="{{ 'active' if request.endpoint == 'admin.dashboard' else '' }}">
+          <div class="sb-icon" style="font-size:1.1rem;">🏠</div>
+          <span>Dashboard</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('admin_analytics.analytics') }}" class="{{ 'active' if 'admin_analytics' in (request.endpoint or '') else '' }}">
+          <div class="sb-icon" style="font-size:1.1rem;">📊</div>
+          <span>Analytics</span>
+        </a>
+      </li>
+      <li class="sb-section-label mt-2">Content</li>
+      <li>
+        <a href="{{ url_for('admin.movies') }}" class="{{ 'active' if 'movie' in (request.endpoint or '') else '' }}">
+          <div class="sb-icon" style="font-size:1.1rem;">🎬</div>
+          <span>Movies</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('admin.theaters') }}" class="{{ 'active' if request.endpoint in ['admin.theaters','admin.add_theater','admin.edit_theater'] else '' }}">
+          <div class="sb-icon" style="font-size:1.1rem;">🏟️</div>
+          <span>Theaters</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('admin.shows') }}" class="{{ 'active' if request.endpoint in ['admin.shows','admin.add_show','admin.show_form'] else '' }}">
+          <div class="sb-icon" style="font-size:1.1rem;">🎭</div>
+          <span>Shows</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('admin.carousel') }}" class="{{ 'active' if 'carousel' in (request.endpoint or '') else '' }}">
+          <div class="sb-icon" style="font-size:1.1rem;">🖼️</div>
+          <span>Carousel</span>
+        </a>
+      </li>
+
+      <li class="sb-section-label mt-2">People</li>
+      <li>
+        <a href="{{ url_for('admin.users') }}" class="{{ 'active' if request.endpoint in ['admin.users','admin.set_user_role','admin.delete_user'] else '' }}">
+          <div class="sb-icon" style="font-size:1.1rem;">👥</div>
+          <span>Users</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('theater_owners.theater_owners') }}" class="{{ 'active' if 'theater_owners' in (request.endpoint or '') else '' }}">
+          <div class="sb-icon" style="font-size:1.1rem;">🏟️</div>
+          <span>Theater Owners</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('theater_owners.brands') }}" class="{{ 'active' if request.endpoint == 'theater_owners.brands' else '' }}">
+          <div class="sb-icon" style="font-size:1.1rem;">🏷️</div>
+          <span>Brands</span>
+        </a>
+      </li>
+      <li class="sb-section-label mt-2">Finance</li>
+      <li>
+        <a href="{{ url_for('admin.refund_management') }}" class="{{ 'active' if request.endpoint in ['admin.refund_management','admin.approve_refund','admin.reject_refund'] else '' }}">
+          <div class="sb-icon" style="font-size:1.1rem;">💸</div>
+          <span>Refund Requests</span>
+          {%- set _pending_refunds = namespace(count=0) -%}
+          {%- set _pending_refunds.count = pending_refunds_count if pending_refunds_count is defined else 0 -%}
+          {% if _pending_refunds.count > 0 %}
+          <span class="badge" style="background:#F59E0B;color:#fff;">{{ _pending_refunds.count }}</span>
+          {% endif %}
+        </a>
+      </li>
+      <li class="sb-section-label mt-2">Support</li>
+      <li>
+        <a href="{{ url_for('admin.messages') }}" class="{{ 'active' if request.endpoint == 'admin.messages' else '' }}">
+          <div class="sb-icon" style="font-size:1.1rem;">💬</div>
+          <span>Messages</span>
+          {% if unread_messages is defined and unread_messages %}
+          <span class="badge">{{ unread_messages }}</span>
+          {% endif %}
+        </a>
+      </li>
+    </ul>
+
+    <div class="sb-footer">
+      <div class="sb-avatar">{{ current_user.name[0].upper() }}</div>
+      <div>
+        <div class="sb-uname">{{ current_user.name }}</div>
+        <div class="sb-urole">Administrator</div>
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="ms-auto" title="Logout"
+         style="color:#EF4444;font-size:1.1rem;text-decoration:none;display:flex;align-items:center;gap:3px;">
+        <i class="bi bi-box-arrow-right" style="color:#EF4444;font-size:1.1rem;"></i>
+      </a>
+    </div>
+  </nav>
+  <!-- ═══ END SIDEBAR ═══════════════════════════════════════ -->
+
+  <!-- ═══ MAIN ══════════════════════════════════════════════ -->
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div class="d-flex align-items-center gap-3">
+        <button class="sb-toggle" id="sb-toggle"><i class="bi bi-list fs-5"></i></button>
+        <span class="topbar-title">{% block page_title %}Dashboard{% endblock %}</span>
+      </div>
+      <div class="topbar-search d-none d-md-flex">
+        <i class="bi bi-search search-icon"></i>
+        <input type="text" id="adminSearch" placeholder="Search anything…" autocomplete="off">
+        <div id="searchResults" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1.5px solid #BFDBFE;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:9999;max-height:320px;overflow-y:auto;"></div>
+      </div>
+      <div class="d-flex align-items-center gap-2 ms-auto">
+        <a href="{{ url_for('admin_analytics.analytics') }}" class="topbar-icon-btn" title="Analytics">
+          📊
+        </a>
+        <a href="{{ url_for('admin.messages') }}" class="topbar-icon-btn" title="Messages">
+          💬
+          {% if unread_messages is defined and unread_messages %}
+          <span class="notif-dot"></span>
+          {% endif %}
+        </a>
+        <a href="{{ url_for('user.home') }}" class="topbar-icon-btn" title="View Site" target="_blank">
+          🌐
+        </a>
+        <a href="#" class="topbar-user text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
+          <div class="tu-avatar">{{ current_user.name[0].upper() }}</div>
+          <div class="d-none d-md-block">
+            <div class="tu-name">{{ current_user.name.split()[0] }}</div>
+            <div class="tu-role">Admin</div>
+          </div>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><span class="dropdown-item-text">{{ current_user.email }}</span></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}"><i class="bi bi-key me-2"></i>Change Password</a></li>
+          <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+        </ul>
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="px-4 pt-3">
+          {% for cat, msg in messages %}
+            <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
+              <i class="bi bi-{{ 'check-circle-fill' if cat=='success' else 'exclamation-triangle-fill' if cat=='warning' else 'x-circle-fill' if cat=='danger' else 'info-circle-fill' }} me-2"></i>{{ msg | safe }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="admin-content">{% block content %}{% endblock %}</div>
+  </div>
+  <!-- ═══ END MAIN ══════════════════════════════════════════ -->
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/validations.js') }}" defer></script>
+<script>
+const sidebar = document.getElementById("admin-sidebar");
+const overlay = document.getElementById("sb-overlay");
+const toggleBtn = document.getElementById("sb-toggle");
+toggleBtn?.addEventListener("click", () => { sidebar.classList.toggle("open"); overlay.classList.toggle("open"); });
+overlay?.addEventListener("click", () => { sidebar.classList.remove("open"); overlay.classList.remove("open"); });
+</script>
+{% block scripts %}{% endblock %}
+<script>
+/* ── Topbar Search ── */
+(function(){
+  const searchLinks = [
+    { label:'Dashboard', icon:'🏠', url:'{{ url_for("admin.dashboard") }}' },
+    { label:'Analytics', icon:'📊', url:'{{ url_for("admin_analytics.analytics") }}' },
+    { label:'Movies – View All', icon:'🎬', url:'{{ url_for("admin.movies") }}' },
+    { label:'Movies – Add New', icon:'➕', url:'{{ url_for("admin.add_movie") }}' },
+    { label:'Theaters – View All', icon:'🏟️', url:'{{ url_for("admin.theaters") }}' },
+    { label:'Theaters – Add New', icon:'➕', url:'{{ url_for("admin.add_theater") }}' },
+    { label:'Shows – View All', icon:'🎭', url:'{{ url_for("admin.shows") }}' },
+    { label:'Shows – Add New', icon:'➕', url:'{{ url_for("admin.add_show") }}' },
+    { label:'Carousel Manager', icon:'🖼️', url:'{{ url_for("admin.carousel") }}' },
+    { label:'Users', icon:'👥', url:'{{ url_for("admin.users") }}' },
+    { label:'Theater Owners', icon:'🏟️', url:'{{ url_for("theater_owners.theater_owners") }}' },
+    { label:'Brands', icon:'🏷️', url:'{{ url_for("theater_owners.brands") }}' },
+    { label:'Messages / Contact', icon:'💬', url:'{{ url_for("admin.messages") }}' },
+    { label:'All Bookings', icon:'🎟️', url:'{{ url_for("admin.all_bookings") }}' },
+    { label:'Refund Management', icon:'💸', url:'{{ url_for("admin.refund_management") }}' },
+    { label:'Change Password', icon:'🔑', url:'{{ url_for("auth.change_password") }}' },
+    { label:'Logout', icon:'🚪', url:'{{ url_for("auth.logout") }}' },
+    { label:'View Live Site', icon:'🌐', url:'{{ url_for("user.home") }}' },
+  ];
+  const inp = document.getElementById('adminSearch');
+  const box = document.getElementById('searchResults');
+  if(!inp || !box) return;
+  inp.addEventListener('input', function(){
+    const q = this.value.trim().toLowerCase();
+    if(!q){ box.style.display='none'; return; }
+    const hits = searchLinks.filter(l => l.label.toLowerCase().includes(q));
+    if(!hits.length){ box.style.display='none'; return; }
+    box.innerHTML = hits.map(h =>
+      `<a href="${h.url}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;text-decoration:none;color:#1E293B;font-size:.875rem;border-bottom:1px solid #F1F5F9;">
+        <span style="font-size:1rem;">${h.icon}</span>
+        <span>${h.label}</span>
+      </a>`
+    ).join('');
+    box.style.display='block';
+  });
+  document.addEventListener('click', function(e){
+    if(!inp.contains(e.target) && !box.contains(e.target)) box.style.display='none';
+  });
+  inp.addEventListener('keydown', function(e){
+    if(e.key==='Escape') box.style.display='none';
+    if(e.key==='Enter'){
+      const first = box.querySelector('a');
+      if(first) first.click();
+    }
+  });
+})();
+</script>
+</body>
+</html>

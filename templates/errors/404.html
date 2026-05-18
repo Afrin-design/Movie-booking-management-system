@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}404 Not Found — CineHub{% endblock %}
+{% block content %}
+<div class="container py-5 text-center" style="min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="font-size:5rem;margin-bottom:1rem;">🎬</div>
+  <h1 class="fw-bold" style="font-family:'Syne',sans-serif;font-size:4rem;color:var(--bms-primary);">404</h1>
+  <h4 class="fw-semibold mb-2">Page Not Found</h4>
+  <p class="text-muted mb-4">Looks like this scene was cut from the movie.</p>
+  <div class="d-flex gap-2 justify-content-center">
+    <a href="{{ url_for('user.home') }}" class="btn btn-bms">Go Home</a>
+    <a href="{{ url_for('user.movies') }}" class="btn btn-ghost">Browse Movies</a>
+  </div>
+</div>
+{% endblock %}

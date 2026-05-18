@@ -1,0 +1,578 @@
+{% extends "base.html" %}
+{% block title %}My Bookings – CineHub{% endblock %}
+
+{% block head %}
+<style>
+/* ── booking card ───────────────────────────────── */
+.bk-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 14px;
+  transition: box-shadow .15s;
+  position: relative;
+}
+.bk-card:hover { box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+.bk-icon {
+  width: 54px; height: 54px; border-radius: 13px;
+  background: linear-gradient(135deg,#1e3a6e,#3b82f6);
+  display: flex; align-items: center;
+  justify-content: center; font-size: 1.5rem; flex-shrink: 0;
+}
+.bk-title  { font-family:'Poppins',sans-serif; font-weight:700; font-size:1rem; color:#0f172a; }
+.bk-meta   { font-size:.78rem; color:#64748b; margin-top:5px; }
+.bk-id     { font-family:monospace; font-size:.72rem; color:#94a3b8; }
+
+/* ── status badges ──────────────────────────────── */
+.badge-confirmed { background:rgba(16,185,129,.1);  color:#059669; border:1px solid rgba(16,185,129,.25); }
+.badge-pending   { background:rgba(245,158,11,.1);  color:#d97706; border:1px solid rgba(245,158,11,.25); }
+.badge-cancelled { background:rgba(239,68,68,.1);   color:#dc2626; border:1px solid rgba(239,68,68,.25);  }
+.badge-refunded  { background:rgba(139,92,246,.1);  color:#7c3aed; border:1px solid rgba(139,92,246,.25); }
+.badge-expired   { background:rgba(100,116,139,.1); color:#475569; border:1px solid rgba(100,116,139,.25);}
+.status-pill {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 14px; border-radius:20px; font-size:.76rem; font-weight:700;
+}
+.refund-pill {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:2px 11px; border-radius:20px; font-size:.7rem; font-weight:700;
+}
+
+/* ── action buttons ─────────────────────────────── */
+.btn-pay    { background:#3b82f6; color:#fff; border:none; border-radius:10px;
+              padding:7px 18px; font-size:.8rem; font-weight:600;
+              text-decoration:none; display:inline-flex; align-items:center; gap:5px;
+              transition:opacity .15s; }
+.btn-pay:hover { opacity:.88; color:#fff; }
+.btn-cancel { background:transparent; color:#ef4444;
+              border:1.5px solid #fca5a5; border-radius:10px;
+              padding:6px 15px; font-size:.78rem; font-weight:600;
+              cursor:pointer; transition:all .15s; }
+.btn-cancel:hover { background:#fef2f2; border-color:#ef4444; }
+.btn-ticket { background:transparent; color:#0ea5e9;
+              border:1.5px solid #7dd3fc; border-radius:10px;
+              padding:6px 14px; font-size:.78rem; font-weight:600;
+              cursor:pointer; transition:all .15s; }
+.btn-ticket:hover { background:#f0f9ff; border-color:#0ea5e9; }
+
+/* ── refund info box ────────────────────────────── */
+.refund-box {
+  background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;
+  padding:10px 14px; font-size:.76rem; color:#475569; margin-top:10px;
+}
+.refund-box strong { color:#0f172a; }
+
+/* ── cancel modal — dark theme compatible ───────── */
+.cancel-modal .modal-content {
+  border-radius:18px;
+  border:1px solid rgba(59,130,246,.25) !important;
+  box-shadow:0 24px 80px rgba(0,0,0,.6);
+  background:#111827 !important;
+  color:#f0f4ff !important;
+}
+.cancel-modal .modal-header {
+  border-bottom:1px solid rgba(255,255,255,.08) !important;
+  padding:18px 22px 14px;
+  background:#111827 !important;
+}
+.cancel-modal .modal-title { color:#f0f4ff !important; }
+.cancel-modal .btn-close   { filter:invert(1) brightness(2); }
+.cancel-modal .modal-body  {
+  padding:18px 22px 10px;
+  background:#111827 !important;
+  color:#f0f4ff !important;
+}
+.cancel-modal .modal-footer {
+  background:#111827 !important;
+  border-top:1px solid rgba(255,255,255,.08) !important;
+}
+.cancel-modal .movie-info-box {
+  background:rgba(255,255,255,.06) !important;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:12px; padding:14px; margin-bottom:16px;
+}
+.cancel-modal .movie-title  { color:#f0f4ff !important; font-weight:700; font-size:.95rem; }
+.cancel-modal .movie-meta   { color:rgba(200,215,255,.65) !important; font-size:.78rem; margin-top:5px; }
+.cancel-modal .form-control {
+  background:rgba(255,255,255,.07) !important;
+  border:1px solid rgba(255,255,255,.15) !important;
+  color:#f0f4ff !important; border-radius:10px;
+}
+.cancel-modal .form-control::placeholder { color:rgba(200,215,255,.4) !important; }
+.cancel-modal .form-label   { color:rgba(200,215,255,.8) !important; }
+.cancel-modal .alert-info   {
+  background:rgba(59,130,246,.12) !important;
+  border-color:rgba(59,130,246,.3) !important;
+  color:rgba(200,215,255,.85) !important;
+}
+.refund-breakdown {
+  background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.25);
+  border-radius:12px; padding:14px 16px; margin-bottom:14px;
+}
+.refund-breakdown .rb-row {
+  display:flex; justify-content:space-between;
+  font-size:.82rem; padding:3px 0; color:#f0f4ff;
+}
+.refund-breakdown .rb-row span { color:rgba(200,215,255,.7); }
+.refund-breakdown .rb-row strong { color:#f0f4ff; }
+.refund-breakdown .rb-total {
+  border-top:1px dashed rgba(245,158,11,.35);
+  padding-top:8px; margin-top:6px; font-weight:700;
+}
+
+@media print {
+  body > *:not(#print-area) { display:none !important; }
+  #print-area { display:block !important; position:static !important; background:#fff !important; }
+  .ticket-outer { border:2px solid #1e293b; border-radius:14px; overflow:hidden;
+                  max-width:480px; margin:0 auto; font-family:Inter,sans-serif; }
+  .ticket-header { background:#1e40af; color:#fff; padding:20px 24px 14px; text-align:center; }
+  .ticket-header .brand { font-size:1.5rem; font-weight:800; letter-spacing:1px; }
+  .ticket-header .movie { font-size:1rem; font-weight:700; margin-top:5px; }
+  .ticket-body { padding:18px 24px; background:#fff; }
+  .t-row { display:flex; justify-content:space-between; padding:6px 0;
+           border-bottom:1px dashed #e2e8f0; font-size:.84rem; }
+  .t-row:last-child { border-bottom:none; }
+  .t-label { color:#64748b; font-weight:500; }
+  .t-val   { font-weight:700; color:#0f172a; text-align:right; }
+  .ticket-footer { background:#f8fafc; border-top:2px dashed #e2e8f0;
+                   padding:14px 24px; display:flex;
+                   justify-content:space-between; align-items:center; }
+  .ticket-footer .total-amt { font-size:1.15rem; font-weight:800; color:#1e40af; }
+  .seat-chip { background:#dbeafe; color:#1d4ed8; border-radius:4px;
+               padding:1px 7px; font-size:.74rem; font-weight:700;
+               margin:1px; display:inline-block; }
+  @page { size:A5 landscape; margin:10mm; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-xl py-4" style="max-width:900px;">
+  <h2 class="fw-bold mb-4">
+    <i class="bi bi-ticket-perforated-fill me-2" style="color:var(--ch-primary,#3b82f6);"></i>
+    My Bookings
+  </h2>
+
+  {% if bookings %}
+  {% for booking in bookings %}
+  {% set st = booking_states[booking.booking_id] %}
+  {% set ps = st.status %}
+
+  <div class="bk-card" id="bkcard-{{ booking.booking_id }}">
+    <div class="d-flex align-items-start gap-3 flex-wrap">
+
+      <!-- Icon -->
+      <div class="bk-icon">🎬</div>
+
+      <!-- Info -->
+      <div class="flex-grow-1">
+        <div class="bk-title">{{ booking.show.movie.title }}</div>
+        <div class="bk-meta">
+          🏟️ {{ booking.show.theater.name }}, {{ booking.show.theater.city }}
+          &nbsp;·&nbsp; 📅 {{ booking.show.show_date_display }}
+          &nbsp;·&nbsp; 🕐 {{ booking.show.start_time[:5] if booking.show.start_time else '—' }}
+          &nbsp;·&nbsp; 🪑 {{ booking.total_tickets }} seat(s)
+        </div>
+        <div class="bk-id mt-1">
+          <span>{{ booking.booking_id }}</span>
+          &nbsp;·&nbsp; Booked {{ booking.booking_date.strftime('%d %b %Y %H:%M') if booking.booking_date else '—' }}
+        </div>
+
+        {# ── Refund / cancellation info box ── #}
+        {% if ps in ('CANCELLED','REFUNDED') %}
+        <div class="refund-box mt-2">
+          <div class="d-flex flex-wrap gap-3">
+            <span>💰 <strong>Paid:</strong> ₹{{ '%.2f'|format(st.total_amount) }}</span>
+            <span>🚫 <strong>Conv. fee:</strong> ₹{{ '%.0f'|format(st.conv_fee) }} (non-refundable)</span>
+            <span>💸 <strong>Refund:</strong> ₹{{ '%.2f'|format(st.refund_amount) }}</span>
+          </div>
+          {% if booking.cancellation_reason %}
+          <div class="mt-1">📝 <strong>Reason:</strong> {{ booking.cancellation_reason }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Status + actions column -->
+      <div class="d-flex flex-column align-items-end gap-2 flex-shrink-0" style="min-width:150px;">
+
+        {# ── Main status pill ── #}
+        {% if ps == 'CONFIRMED' %}
+          <span class="status-pill badge-confirmed">✅ Confirmed</span>
+        {% elif ps == 'Pending' %}
+          <span class="status-pill badge-pending">⏳ Pending Payment</span>
+        {% elif ps == 'CANCELLED' %}
+          <span class="status-pill badge-cancelled">🚫 Cancelled</span>
+        {% elif ps == 'REFUNDED' %}
+          <span class="status-pill badge-refunded">💸 Refunded</span>
+        {% elif ps == 'EXPIRED' %}
+          <span class="status-pill badge-expired">⌛ Expired</span>
+        {% else %}
+          <span class="status-pill badge-expired">{{ ps }}</span>
+        {% endif %}
+
+        {# ── Refund status micro-badge ── #}
+        {% if booking.refund_status == 'PENDING' %}
+          <span class="refund-pill" style="background:rgba(245,158,11,.1);color:#d97706;border:1px solid rgba(245,158,11,.3);">⏳ Refund Pending</span>
+        {% elif booking.refund_status == 'APPROVED' %}
+          <span class="refund-pill" style="background:rgba(16,185,129,.1);color:#059669;border:1px solid rgba(16,185,129,.3);">✅ Refund Approved</span>
+        {% elif booking.refund_status == 'REJECTED' %}
+          <span class="refund-pill" style="background:rgba(239,68,68,.1);color:#dc2626;border:1px solid rgba(239,68,68,.3);">❌ Refund Rejected</span>
+        {% endif %}
+
+        {# ── Pay Now — only if can_pay ── #}
+        {% if st.can_pay %}
+        <a href="{{ url_for('user.payment', booking_id=booking.booking_id) }}" class="btn-pay">
+          💳 Pay Now
+        </a>
+        {% endif %}
+
+        {# ── Cancel & Refund — only if can_cancel ── #}
+        {% if st.can_cancel %}
+        <button class="btn-cancel"
+                onclick="openCancelModal('{{ booking.booking_id }}')">
+          🚫 Cancel & Refund
+        </button>
+        {% endif %}
+
+        {# ── Download Ticket — only if confirmed ── #}
+        {% if ps == 'CONFIRMED' %}
+        <button class="btn-ticket"
+          onclick="printTicket(
+            '{{ booking.booking_id }}',
+            '{{ booking.show.movie.title | e }}',
+            '{{ booking.show.theater.name | e }}',
+            '{{ booking.show.theater.city | e }}',
+            '{{ booking.show.show_date_display | e }}',
+            '{{ booking.show.start_time[:5] if booking.show.start_time else '' }}',
+            '{{ booking.show.screen.screen_number if booking.show.screen else '' }}',
+            '{{ booking.seat_labels | e if booking.seat_labels else '' }}',
+            {{ booking.total_tickets }},
+            '{{ '%.2f'|format(st.total_amount) }}'
+          )">
+          <i class="bi bi-download me-1"></i>Ticket
+        </button>
+        {% endif %}
+
+        {# ── Expired show message ── #}
+        {% if ps == 'EXPIRED' %}
+        <span style="font-size:.72rem;color:#94a3b8;">Show has ended</span>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+
+  {% endfor %}
+  {% else %}
+  <div class="text-center py-5">
+    <i class="bi bi-ticket display-1 text-muted"></i>
+    <p class="mt-3 text-muted fs-5">You haven't made any bookings yet.</p>
+    <a href="{{ url_for('user.movies') }}" class="btn btn-primary mt-2" style="border-radius:10px;">
+      Browse Movies
+    </a>
+  </div>
+  {% endif %}
+
+{% endblock %}
+
+{# ── All cancel modals in body_modals so they are direct children of <body>,
+   fully escaping any backdrop-filter/transform stacking context ── #}
+{% block body_modals %}
+{% if bookings %}
+{% for booking in bookings %}
+{% set st = booking_states[booking.booking_id] %}
+{% set ps = st.status %}
+{% if ps == 'CONFIRMED' %}
+<div id="cancelModal{{ booking.booking_id }}"
+     style="display:none; position:fixed; inset:0; z-index:9999;
+            background:rgba(0,0,0,.72);
+            align-items:center; justify-content:center; padding:16px;">
+  <!-- isolate the modal box from the backdrop -->
+  <div style="position:relative; z-index:10000; background:#1c2333;
+              border:1px solid rgba(100,130,255,.3); border-radius:16px;
+              width:100%; max-width:460px; max-height:90vh;
+              box-shadow:0 30px 80px rgba(0,0,0,.8); color:#e8eeff;
+              display:flex; flex-direction:column; overflow:hidden;">
+
+    <!-- HEADER -->
+    <div style="padding:16px 20px; border-bottom:1px solid rgba(255,255,255,.08);
+                display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+      <span style="color:#e8eeff; font-weight:700; font-size:1rem;">🚫 Cancel Booking</span>
+      <button onclick="closeCancelModal('{{ booking.booking_id }}')"
+              style="background:none; border:none; color:rgba(180,200,255,.7);
+                     font-size:1.4rem; cursor:pointer; line-height:1; padding:0 4px;">&times;</button>
+    </div>
+
+    <!-- BODY -->
+    <div style="padding:18px 20px; overflow-y:auto; flex:1;">
+
+      {% if st.can_cancel %}
+      <!-- Movie info -->
+      <div style="background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
+                  border-radius:12px; padding:13px 16px; margin-bottom:14px;">
+        <div style="color:#e8eeff; font-weight:700; font-size:.93rem;">{{ booking.show.movie.title }}</div>
+        <div style="color:rgba(180,200,255,.6); font-size:.76rem; margin-top:6px; line-height:1.7;">
+          📅 {{ booking.show.show_date_display }} &nbsp;·&nbsp;
+          🕐 {{ booking.show.start_time[:5] if booking.show.start_time else '—' }}<br>
+          🏟️ {{ booking.show.theater.name }}, {{ booking.show.theater.city }}
+        </div>
+      </div>
+
+      <!-- Refund breakdown -->
+      <div style="background:rgba(245,158,11,.07); border:1px solid rgba(245,158,11,.22);
+                  border-radius:12px; padding:13px 15px; margin-bottom:14px;">
+        <div style="font-size:.77rem; font-weight:700; color:#f59e0b; margin-bottom:10px;">⚠️ Refund Breakdown</div>
+        <div style="display:flex; justify-content:space-between; font-size:.82rem; padding:4px 0;">
+          <span style="color:rgba(180,200,255,.7);">Total Paid</span>
+          <strong style="color:#e8eeff;">₹{{ '%.2f'|format(st.total_amount) }}</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:.82rem; padding:4px 0;">
+          <span style="color:#f87171;">Convenience Fee <em style="font-size:.7rem;">(non-refundable)</em></span>
+          <strong style="color:#f87171;">− ₹{{ '%.0f'|format(st.conv_fee) }}</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:.87rem;
+                    padding:9px 0 3px; border-top:1px dashed rgba(245,158,11,.3); margin-top:6px; font-weight:800;">
+          <span style="color:#34d399;">Refund Amount</span>
+          <strong style="color:#34d399; font-size:.95rem;">₹{{ '%.2f'|format(st.refund_amount) }}</strong>
+        </div>
+      </div>
+
+      <!-- Policy -->
+      <div style="background:rgba(59,130,246,.08); border:1px solid rgba(59,130,246,.2);
+                  border-radius:10px; padding:10px 14px; font-size:.74rem;
+                  color:rgba(180,200,255,.8); margin-bottom:14px; line-height:1.55;">
+        ℹ️ Cancellation closes <strong style="color:#93c5fd;">30 min</strong> before show.
+        Refund processed in <strong style="color:#93c5fd;">5–7 business days</strong> after admin approval.
+      </div>
+
+      <!-- Reason -->
+      <div style="margin-bottom:6px;">
+        <label style="font-size:.79rem; color:rgba(180,200,255,.8); font-weight:600;
+                      display:block; margin-bottom:6px;">
+          Reason <span style="color:rgba(180,200,255,.35); font-weight:400;">(optional)</span>
+        </label>
+        <textarea id="cancelReason{{ booking.booking_id }}" rows="2"
+                  placeholder="e.g. Change of plans, emergency…"
+                  style="width:100%; background:rgba(255,255,255,.05);
+                         border:1px solid rgba(255,255,255,.13); border-radius:10px;
+                         color:#e8eeff; font-size:.82rem; padding:9px 12px;
+                         outline:none; resize:none; font-family:inherit; box-sizing:border-box;"></textarea>
+      </div>
+
+      <!-- Error box -->
+      <div id="cancelError{{ booking.booking_id }}"
+           style="display:none; background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3);
+                  border-radius:10px; padding:9px 13px; font-size:.79rem; color:#fca5a5; margin-top:8px;"></div>
+
+      {% else %}
+      <div style="text-align:center; padding:24px 10px 16px;">
+        <div style="font-size:2.2rem; margin-bottom:10px;">⏰</div>
+        <div style="color:#f87171; font-weight:700; font-size:.95rem; margin-bottom:8px;">Cancellation Not Available</div>
+        <div style="color:rgba(180,200,255,.6); font-size:.81rem; line-height:1.55;">
+          {{ st.cancel_blocked_reason or 'The show starts in less than 30 minutes or has already ended.' }}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- FOOTER -->
+    <div style="padding:13px 20px; border-top:1px solid rgba(255,255,255,.08);
+                display:flex; gap:10px; flex-shrink:0; background:#1c2333;">
+      <button onclick="closeCancelModal('{{ booking.booking_id }}')"
+              style="flex:1; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14);
+                     color:#e8eeff; border-radius:10px; padding:10px 14px;
+                     font-size:.84rem; font-weight:600; cursor:pointer;">
+        ← Keep Booking
+      </button>
+      {% if st.can_cancel %}
+      <button id="confirmCancelBtn{{ booking.booking_id }}"
+              onclick="submitCancel('{{ booking.booking_id }}')"
+              style="flex:1; background:#dc2626; border:none; color:#fff;
+                     border-radius:10px; padding:10px 14px;
+                     font-size:.84rem; font-weight:700; cursor:pointer;">
+        Confirm Cancellation
+      </button>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function printTicket(bid, movie, theater, city, date, time, screen, seatLabels, tickets, amount) {
+  var seats = seatLabels
+    ? seatLabels.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+  var seatHtml = seats.length
+    ? seats.map(s => '<span class="seat-chip">' + s + '</span>').join(' ')
+    : tickets + ' ticket(s)';
+
+  var html =
+    '<div class="ticket-outer">'
+    + '<div class="ticket-header"><div class="brand">🎬 CineHub</div>'
+    + '<div class="movie">' + movie + '</div></div>'
+    + '<div class="ticket-body">'
+    + '<div class="t-row"><span class="t-label">Theater</span><span class="t-val">' + theater + ', ' + city + '</span></div>'
+    + '<div class="t-row"><span class="t-label">Date</span><span class="t-val">' + date + '</span></div>'
+    + '<div class="t-row"><span class="t-label">Show Time</span><span class="t-val">' + (time || '—') + '</span></div>'
+    + '<div class="t-row"><span class="t-label">Screen</span><span class="t-val">Screen #' + (screen || '—') + '</span></div>'
+    + '<div class="t-row"><span class="t-label">Seats (' + tickets + ')</span><span class="t-val">' + seatHtml + '</span></div>'
+    + '<div class="t-row"><span class="t-label">Status</span><span class="t-val" style="color:#059669;">✓ Confirmed</span></div>'
+    + '</div>'
+    + '<div class="ticket-footer">'
+    + '<div><div style="font-size:.78rem;color:#64748b;">Amount Paid</div>'
+    + '<div class="total-amt">₹' + amount + '</div>'
+    + '<div style="font-family:monospace;font-size:.7rem;color:#94a3b8;">' + bid + '</div></div>'
+    + '<div style="text-align:right;font-size:.7rem;color:#94a3b8;line-height:1.6;">'
+    + 'Booked via CineHub<br><strong style="color:#1e40af;">Valid ID required at entry</strong></div>'
+    + '</div></div>';
+
+  var area = document.getElementById('print-area');
+  area.innerHTML = html;
+  area.style.display = 'block';
+  area.style.position = 'fixed';
+  area.style.inset = '0';
+  area.style.zIndex = '99999';
+  area.style.background = '#fff';
+  area.style.overflow = 'auto';
+  area.style.padding = '20px';
+  setTimeout(function() {
+    window.print();
+    area.style.display = 'none';
+    area.innerHTML = '';
+  }, 100);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Custom Modal — open / close (no Bootstrap JS dependency)
+═══════════════════════════════════════════════════════════ */
+function openCancelModal(bookingId) {
+  const modal = document.getElementById('cancelModal' + bookingId);
+  if (!modal) return;
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';   // prevent background scroll
+  // Close on backdrop click
+  modal.onclick = function(e) {
+    if (e.target === modal) closeCancelModal(bookingId);
+  };
+}
+
+function closeCancelModal(bookingId) {
+  const modal = document.getElementById('cancelModal' + bookingId);
+  if (modal) modal.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// Close on Escape key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('[id^="cancelModal"]').forEach(m => {
+      if (m.style.display === 'flex') {
+        m.style.display = 'none';
+        document.body.style.overflow = '';
+      }
+    });
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════
+   Cancel & Refund — AJAX submit
+═══════════════════════════════════════════════════════════ */
+const _cancelInFlight = {};
+
+async function submitCancel(bookingId) {
+  if (_cancelInFlight[bookingId]) return;
+
+  const btn      = document.getElementById('confirmCancelBtn' + bookingId);
+  const errBox   = document.getElementById('cancelError' + bookingId);
+  const textarea = document.getElementById('cancelReason' + bookingId);
+
+  errBox.style.display = 'none';
+  errBox.textContent   = '';
+
+  _cancelInFlight[bookingId] = true;
+  btn.disabled  = true;
+  const origTxt = btn.textContent;
+  btn.innerHTML = '⏳ Processing…';
+
+  const reason = (textarea ? textarea.value : '').trim() || 'User requested cancellation';
+
+  try {
+    const resp = await fetch('/api/bookings/' + bookingId + '/cancel', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body:    JSON.stringify({ reason }),
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok || !data.ok) {
+      errBox.textContent   = data.error || 'Something went wrong. Please try again.';
+      errBox.style.display = 'block';
+      btn.disabled  = false;
+      btn.innerHTML = origTxt;
+      _cancelInFlight[bookingId] = false;
+      return;
+    }
+
+    // Success — close modal and update card
+    closeCancelModal(bookingId);
+    _updateCardAfterCancel(bookingId, data);
+
+  } catch (err) {
+    errBox.textContent   = 'Network error — check your connection and try again.';
+    errBox.style.display = 'block';
+    btn.disabled  = false;
+    btn.innerHTML = origTxt;
+    _cancelInFlight[bookingId] = false;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Update card UI after successful cancel
+═══════════════════════════════════════════════════════════ */
+function _updateCardAfterCancel(bookingId, data) {
+  const card = document.getElementById('bkcard-' + bookingId);
+  if (!card) { location.reload(); return; }
+
+  // Swap status pill
+  const pill = card.querySelector('.badge-confirmed');
+  if (pill) {
+    pill.className   = 'status-pill badge-cancelled';
+    pill.textContent = '🚫 Cancelled';
+  }
+
+  // Remove action buttons, add refund-pending badge
+  const actionsCol = card.querySelector('.d-flex.flex-column.align-items-end');
+  if (actionsCol) {
+    actionsCol.querySelectorAll('.btn-cancel, .btn-ticket').forEach(b => b.remove());
+    const badge = document.createElement('span');
+    badge.className = 'refund-pill';
+    badge.style.cssText = 'background:rgba(245,158,11,.1);color:#d97706;border:1px solid rgba(245,158,11,.3);margin-top:4px;';
+    badge.textContent = '⏳ Refund Pending';
+    actionsCol.appendChild(badge);
+  }
+
+  // Inject refund info box
+  const infoDiv = card.querySelector('.flex-grow-1');
+  if (infoDiv && !infoDiv.querySelector('.refund-box')) {
+    const box = document.createElement('div');
+    box.className = 'refund-box mt-2';
+    box.innerHTML =
+      '<div class="d-flex flex-wrap gap-3">'
+      + '<span>💰 <strong>Paid:</strong> ₹' + data.total_amount.toFixed(2) + '</span>'
+      + '<span>🚫 <strong>Conv. fee:</strong> ₹' + data.conv_fee.toFixed(0) + ' (non-refundable)</span>'
+      + '<span>💸 <strong>Refund:</strong> ₹' + data.refund_amount.toFixed(2) + '</span>'
+      + '</div>';
+    infoDiv.appendChild(box);
+  }
+}
+</script>
+{% endblock %}

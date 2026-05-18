@@ -1,0 +1,14 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  HOW TO ADD YOUR OWN UPI QR CODE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: Open PhonePe / GPay / Paytm
+Step 2: Go to "Receive Money" or "My QR Code"  
+Step 3: Save / Screenshot your QR code image
+Step 4: Rename it to:  upi_qr.png
+Step 5: Copy it to:    static/images/upi_qr.png
+         (this folder - right here!)
+
+That's it! Your QR will show automatically on
+the payment page when UPI is selected.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

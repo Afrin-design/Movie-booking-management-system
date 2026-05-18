@@ -1,0 +1,658 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Carousel{% endblock %}
+{% block page_title %}🎬 Carousel Manager{% endblock %}
+
+{% block head %}
+<style>
+:root {
+  --cr: var(--bms-coral);
+  --crd: #c20036;
+  --cglow: rgba(244,63,94,.22);
+}
+/* Hero banner */
+.cm-hero {
+  background: linear-gradient(135deg,var(--adm-bg) 0%,#EFF6FF 60%,#EEF2FF 100%);
+  border-radius:16px; padding:26px 30px; margin-bottom:24px;
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;
+  position:relative; overflow:hidden;
+}
+.cm-hero::before {
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(ellipse at 80% 50%,rgba(59,130,246,.1) 0%,transparent 60%);
+}
+.cm-hero-text { position:relative; }
+.cm-hero-text h2 { color:var(--adm-text); font-size:1.45rem; font-weight:800; margin:0 0 5px; }
+.cm-hero-text p  { color:var(--adm-text-3); margin:0; font-size:.86rem; }
+.cm-hero-actions { position:relative; display:flex; gap:10px; flex-wrap:wrap; }
+.btn-add-slide {
+  background:linear-gradient(135deg,var(--adm-blue),var(--adm-blue-d));
+  color:#fff; border:none; padding:10px 20px; border-radius:10px;
+  font-weight:700; font-size:.86rem; cursor:pointer;
+  display:flex; align-items:center; gap:7px;
+  box-shadow:0 4px 14px rgba(59,130,246,.3); transition:all .22s; text-decoration:none;
+}
+.btn-add-slide:hover { transform:translateY(-2px); box-shadow:0 7px 20px rgba(59,130,246,.4); color:#fff; }
+.btn-preview {
+  background:rgba(255,255,255,.12); backdrop-filter:blur(8px);
+  border:1.5px solid var(--adm-border); color:var(--adm-text-2);
+  padding:10px 18px; border-radius:10px; font-weight:600; font-size:.84rem;
+  display:flex; align-items:center; gap:7px; text-decoration:none; transition:all .2s;
+}
+.btn-preview:hover { background:var(--adm-blue-l); color:var(--adm-blue); }
+
+/* info banner */
+.info-banner {
+  background:linear-gradient(135deg,#EFF6FF,#F0F9FF);
+  border:1.5px solid rgba(59,130,246,.2); border-radius:12px;
+  padding:14px 18px; margin-bottom:22px;
+  display:flex; align-items:center; gap:12px;
+}
+.ib-icon {
+  width:42px; height:42px; border-radius:10px; flex-shrink:0;
+  background:linear-gradient(135deg,var(--adm-blue),var(--adm-blue-d));
+  display:flex; align-items:center; justify-content:center; color:#fff; font-size:1rem;
+}
+.info-banner h6 { margin:0 0 2px; font-weight:700; color:var(--adm-text); font-size:.9rem; }
+.info-banner p  { margin:0; font-size:.8rem; color:#6b7a99; }
+
+/* Stats row */
+.cm-stats { display:flex; gap:14px; margin-bottom:24px; flex-wrap:wrap; }
+.cm-stat {
+  flex:1; min-width:130px; background:#fff; border:1.5px solid #e8ecf4;
+  border-radius:12px; padding:14px 16px; display:flex; align-items:center; gap:12px;
+}
+.cs-icon { width:38px; height:38px; border-radius:9px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:.9rem; }
+.cs-red   { background:rgba(59,130,246,.1);  color:var(--adm-blue); }
+.cs-green { background:rgba(16,185,129,.1); color:#10b981; }
+.cs-blue  { background:rgba(96,165,250,.1); color:#60a5fa; }
+.cs-num   { font-size:1.55rem; font-weight:900; color:var(--adm-text); line-height:1; }
+.cs-lbl   { font-size:.7rem; color:#6b7a99; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+
+/* Slides grid */
+.slides-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:18px; margin-bottom:28px; }
+.slide-card {
+  background:#fff; border:1.5px solid #e8ecf4; border-radius:16px;
+  overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,.06); transition:transform .22s,box-shadow .22s;
+}
+.slide-card:hover { transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,.1); }
+.slide-card.inactive { opacity:.6; }
+
+.slide-poster {
+  position:relative; width:100%; height:190px; overflow:hidden;
+  background:linear-gradient(145deg,#0d1525,#1a2540);
+}
+.slide-poster img { width:100%; height:100%; object-fit:cover; display:block; }
+.sp-overlay {
+  position:absolute; inset:0;
+  background:linear-gradient(to top,rgba(0,0,0,.88) 0%,transparent 55%);
+  display:flex; flex-direction:column; justify-content:flex-end; padding:12px;
+}
+.sp-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  background:linear-gradient(135deg,var(--adm-blue),var(--adm-blue-d));
+  color:#fff; font-size:.58rem; font-weight:800; letter-spacing:1.5px;
+  text-transform:uppercase; padding:3px 9px; border-radius:4px;
+  margin-bottom:6px; width:fit-content;
+}
+.sp-title  { color:#fff; font-size:.92rem; font-weight:800; line-height:1.2; }
+.sp-genre  { color:rgba(255,255,255,.55); font-size:.72rem; margin-top:2px; }
+
+.slide-status {
+  position:absolute; top:9px; right:9px;
+  padding:3px 9px; border-radius:20px; font-size:.62rem; font-weight:800; letter-spacing:.3px;
+}
+.ss-active   { background:rgba(16,185,129,.2); color:#059669; border:1px solid rgba(16,185,129,.3); }
+.ss-inactive { background:rgba(255,255,255,.12); color:rgba(255,255,255,.6); border:1px solid rgba(255,255,255,.18); }
+.slide-order {
+  position:absolute; top:9px; left:9px;
+  width:27px; height:27px; border-radius:50%;
+  background:rgba(0,0,0,.6); backdrop-filter:blur(6px);
+  border:1.5px solid var(--adm-border); color:var(--adm-text-2);
+  font-size:.72rem; font-weight:800;
+  display:flex; align-items:center; justify-content:center;
+}
+.slide-noimg {
+  width:100%; height:100%;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:8px; color:rgba(255,255,255,.2); font-size:2.4rem;
+}
+.slide-noimg span { font-size:.7rem; font-weight:600; color:rgba(255,255,255,.28); }
+
+.slide-body   { padding:14px; }
+.slide-meta   { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:12px; }
+.sm-tag       { font-size:.62rem; font-weight:600; padding:3px 8px; border-radius:5px; }
+.sm-genre     { background:rgba(96,165,250,.1); color:#60a5fa; border:1px solid rgba(96,165,250,.2); }
+.sm-rating    { background:rgba(245,158,11,.1); color:#d97706; border:1px solid rgba(245,158,11,.2); }
+.sm-order     { background:rgba(244,63,94,.1); color:var(--bms-coral); border:1px solid rgba(244,63,94,.2); }
+.slide-actions { display:flex; gap:7px; flex-wrap:wrap; padding-top:10px; border-top:1px solid #e8ecf4; }
+.sa-btn {
+  flex:1; min-width:65px; padding:7px 10px; border-radius:8px;
+  font-size:.72rem; font-weight:700; border:1.5px solid; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:4px;
+  transition:all .2s; text-decoration:none;
+}
+.sa-edit   { background:rgba(96,165,250,.08); color:#60a5fa; border-color:rgba(96,165,250,.25); }
+.sa-edit:hover   { background:rgba(96,165,250,.18); }
+.sa-toggle { background:rgba(16,185,129,.08); color:#059669; border-color:rgba(16,185,129,.25); }
+.sa-toggle.off { background:rgba(0,0,0,.04); color:#9ca3af; border-color:#e5e7eb; }
+.sa-toggle:hover { background:rgba(16,185,129,.18); }
+.sa-delete { background:rgba(244,63,94,.08); color:var(--bms-coral); border-color:rgba(244,63,94,.25); }
+.sa-delete:hover { background:rgba(244,63,94,.18); }
+
+/* Empty */
+.cm-empty {
+  text-align:center; padding:60px 20px; color:#9ca3af;
+  background:#fff; border:2px dashed #e8ecf4; border-radius:16px;
+}
+.cm-empty i { font-size:3rem; margin-bottom:14px; opacity:.3; display:block; }
+.cm-empty h5 { color:#374151; margin-bottom:7px; }
+
+/* Modal */
+.cm-backdrop {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,.5); backdrop-filter:blur(5px);
+  z-index:2000; align-items:center; justify-content:center; padding:20px;
+}
+.cm-backdrop.open { display:flex; }
+.cm-modal {
+  background:#fff; border-radius:18px; width:100%; max-width:540px;
+  max-height:90vh; overflow-y:auto;
+  box-shadow:0 24px 70px rgba(0,0,0,.28);
+  animation:modalIn .25s cubic-bezier(.4,0,.2,1);
+}
+@keyframes modalIn { from{opacity:0;transform:scale(.94) translateY(18px)} to{opacity:1;transform:scale(1) translateY(0)} }
+.cm-modal-head {
+  padding:20px 24px 16px; border-bottom:1px solid #e8ecf4;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.cm-modal-head h5 { margin:0; font-weight:800; color:#1e2a3a; font-size:1.02rem; }
+.cm-close {
+  width:30px; height:30px; border-radius:7px; border:1px solid #e8ecf4;
+  background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  color:#9ca3af; font-size:.85rem; transition:all .2s;
+}
+.cm-close:hover { background:rgba(244,63,94,.1); color:var(--bms-coral); border-color:var(--bms-coral); }
+.cm-modal-body { padding:20px 24px; }
+.cm-modal-foot { padding:14px 24px 20px; border-top:1px solid #e8ecf4; display:flex; gap:9px; justify-content:flex-end; }
+
+/* Form fields */
+.cm-field       { margin-bottom:16px; }
+.cm-field label { display:block; font-size:.78rem; font-weight:700; color:#1e2a3a; margin-bottom:5px; }
+.cm-field label .req { color:var(--bms-coral); margin-left:2px; }
+.cm-field input,.cm-field select,.cm-field textarea {
+  width:100%; border:1.5px solid #e8ecf4; border-radius:9px;
+  padding:9px 13px; font-size:.86rem; color:#1e2a3a; background:#f8faff; outline:none; transition:border-color .2s;
+}
+.cm-field input:focus,.cm-field select:focus,.cm-field textarea:focus {
+  border-color:var(--bms-coral); background:#fff; box-shadow:0 0 0 3px rgba(244,63,94,.1);
+}
+.cm-field textarea { resize:vertical; min-height:66px; }
+.cm-field .hint    { font-size:.72rem; color:#9ca3af; margin-top:4px; }
+
+/* Movie search dropdown */
+.ms-wrap { position:relative; }
+.ms-dd {
+  display:none; position:absolute; top:100%; left:0; right:0;
+  background:#fff; border:1.5px solid #e8ecf4; border-radius:9px;
+  box-shadow:0 8px 28px rgba(0,0,0,.11); z-index:100; max-height:210px; overflow-y:auto; margin-top:4px;
+}
+.ms-dd.open { display:block; }
+.ms-item {
+  padding:9px 13px; cursor:pointer; transition:background .15s;
+  border-bottom:1px solid #e8ecf4; display:flex; flex-direction:column; gap:2px;
+}
+.ms-item:last-child { border-bottom:none; }
+.ms-item:hover { background:rgba(244,63,94,.04); }
+.ms-title { font-size:.84rem; font-weight:700; color:#1e2a3a; }
+.ms-sub   { font-size:.7rem; color:#9ca3af; }
+
+/* Image upload */
+.img-zone {
+  border:2px dashed #e8ecf4; border-radius:11px;
+  padding:22px; text-align:center; cursor:pointer;
+  transition:all .22s; background:#f8faff; margin-bottom:9px;
+}
+.img-zone:hover,.img-zone.drag-over { border-color:var(--bms-coral); background:rgba(244,63,94,.03); }
+.img-zone i  { font-size:1.8rem; color:var(--bms-coral); margin-bottom:6px; display:block; opacity:.6; }
+.img-zone p  { margin:0; font-size:.8rem; color:#9ca3af; }
+.img-preview { width:100%; height:130px; object-fit:cover; border-radius:9px; border:1.5px solid #e8ecf4; display:none; margin-bottom:9px; }
+
+.btn-cancel {
+  padding:9px 18px; border-radius:8px; border:1.5px solid #e8ecf4;
+  background:transparent; color:#9ca3af; font-weight:600; font-size:.83rem; cursor:pointer; transition:all .2s;
+}
+.btn-cancel:hover { border-color:#3b82f6; color:#3b82f6; }
+.btn-save {
+  padding:9px 22px; border-radius:8px;
+  background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+  color:#fff; border:none; font-weight:700; font-size:.86rem;
+  cursor:pointer; display:flex; align-items:center; gap:6px;
+  box-shadow:0 4px 12px rgba(59,130,246,.35); transition:all .22s;
+}
+.btn-save:hover { transform:translateY(-1px); box-shadow:0 6px 18px rgba(59,130,246,.5); }
+.btn-save:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+
+/* Toast */
+.cm-toast {
+  position:fixed; bottom:22px; right:22px; z-index:9999;
+  background:#1e2a3a; color:#fff; padding:13px 18px; border-radius:10px;
+  font-size:.83rem; font-weight:600; box-shadow:0 8px 22px rgba(0,0,0,.28);
+  display:flex; align-items:center; gap:9px;
+  animation:toastIn .3s cubic-bezier(.4,0,.2,1); max-width:320px;
+}
+.cm-toast.success { border-left:4px solid #10b981; }
+.cm-toast.error   { border-left:4px solid var(--bms-coral); }
+@keyframes toastIn { from{opacity:0;transform:translateX(36px)} to{opacity:1;transform:translateX(0)} }
+
+/* Tip */
+.tip-card {
+  background:linear-gradient(135deg,#fff7ed,#fff3f3);
+  border:1px solid rgba(244,63,94,.15); border-radius:12px; padding:15px 18px;
+  margin-top:22px; display:flex; gap:11px;
+}
+.tip-card i   { color:var(--bms-coral); font-size:1rem; margin-top:2px; flex-shrink:0; }
+.tip-card h6  { margin:0 0 4px; font-size:.83rem; font-weight:800; color:#1e2a3a; }
+.tip-card ul  { margin:0; padding-left:15px; }
+.tip-card ul li { font-size:.78rem; color:#6b7a99; margin-bottom:2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<div class="cm-hero">
+  <div class="cm-hero-text">
+    <h2>🖼️ Carousel Manager</h2>
+    <p>Control which movies appear in the homepage hero carousel — images, labels, trailers and order.</p>
+  </div>
+  <div class="cm-hero-actions">
+    <a href="{{ url_for('user.home') }}" target="_blank" class="btn-preview">
+      🌐 Preview Site
+    </a>
+    <button class="btn-add-slide" onclick="openAddModal()">
+      ➕ Add Slide
+    </button>
+  </div>
+</div>
+
+<!-- Info banner -->
+<div class="info-banner">
+  <div class="ib-icon">📢</div>
+  <div>
+    <h6>Live Carousel</h6>
+    <p>Changes here reflect immediately on the homepage. If no slides are active, the site shows top-rated movies automatically.</p>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="cm-stats">
+  <div class="cm-stat">
+    <div class="cs-icon cs-red" style="font-size:1.3rem;">🎞️</div>
+    <div><div class="cs-num">{{ slides|length }}</div><div class="cs-lbl">Total Slides</div></div>
+  </div>
+  <div class="cm-stat">
+    <div class="cs-icon cs-green" style="font-size:1.3rem;">✅</div>
+    <div>
+      <div class="cs-num">{{ slides|selectattr('is_active')|list|length }}</div>
+      <div class="cs-lbl">Active</div>
+    </div>
+  </div>
+  <div class="cm-stat">
+    <div class="cs-icon cs-blue" style="font-size:1.3rem;">🎬</div>
+    <div>
+      <div class="cs-num">{{ slides|selectattr('trailer_url')|list|length }}</div>
+      <div class="cs-lbl">With Trailer</div>
+    </div>
+  </div>
+</div>
+
+<!-- Slides grid -->
+{% if slides %}
+<div class="slides-grid" id="slidesGrid">
+  {% for s in slides %}
+  <div class="slide-card{% if not s.is_active %} inactive{% endif %}" id="slide-{{ s.id }}">
+    <div class="slide-poster">
+      {% if s.image_data %}
+        <img src="{{ s.image_data }}" alt="{{ s.title }}">
+      {% elif s.image_url %}
+        <img src="{{ s.image_url }}" alt="{{ s.title }}" onerror="this.style.display='none'">
+      {% else %}
+        <div class="slide-noimg">🎬<span>No custom image</span></div>
+      {% endif %}
+      <div class="sp-overlay">
+        <div class="sp-badge">{{ s.badge_label or 'NOW SHOWING' }}</div>
+        <div class="sp-title">{{ s.title }}</div>
+        {% if s.genre %}<div class="sp-genre">{{ s.genre }}</div>{% endif %}
+      </div>
+      <div class="slide-order">#{{ s.display_order }}</div>
+      <div class="slide-status {% if s.is_active %}ss-active{% else %}ss-inactive{% endif %}">
+        {% if s.is_active %}● LIVE{% else %}○ OFF{% endif %}
+      </div>
+      {% if s.trailer_url %}
+      <div style="position:absolute;bottom:9px;right:9px;background:rgba(255,0,0,.75);color:#fff;font-size:.58rem;font-weight:800;padding:3px 8px;border-radius:4px;">▶️ TRAILER</div>
+      {% endif %}
+    </div>
+    <div class="slide-body">
+      <div class="slide-meta">
+        {% if s.genre %}<span class="sm-tag sm-genre">{{ s.genre }}</span>{% endif %}
+        {% if s.rating %}<span class="sm-tag sm-rating">⭐ {{ "%.1f"|format(s.rating|float) }}</span>{% endif %}
+        <span class="sm-tag sm-order">Order: {{ s.display_order }}</span>
+      </div>
+      <div class="slide-actions">
+        <button class="sa-btn sa-edit"
+          onclick="openEditModal({{ s.id }},'{{ s.badge_label|replace("'","\\'") }}','{{ s.image_url or "" }}',{{ s.display_order }},'{{ s.trailer_url or "" }}')">
+          ✏️ Edit
+        </button>
+        <button class="sa-btn sa-toggle{% if not s.is_active %} off{% endif %}"
+          id="toggle-{{ s.id }}" onclick="toggleSlide({{ s.id }},this)">
+          <i class="fas {% if s.is_active %}fa-eye-slash{% else %}fa-eye{% endif %}"></i>
+          {% if s.is_active %}Hide{% else %}Show{% endif %}
+        </button>
+        <button class="sa-btn sa-delete"
+          onclick="deleteSlide({{ s.id }},'{{ s.title|replace("'","\\'") }}')">
+          🗑️
+        </button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="cm-empty">
+  🖼️
+  <h5>No Carousel Slides Yet</h5>
+  <p>Add your first slide to control the homepage hero carousel.</p>
+  <button class="btn-add-slide mt-3" onclick="openAddModal()" style="margin:0 auto;display:inline-flex;">
+    ➕ Add First Slide
+  </button>
+</div>
+{% endif %}
+
+<!-- Tip -->
+<div class="tip-card">
+  💡
+  <div>
+    <h6>How it works</h6>
+    <ul>
+      <li>Search and select any movie from your database to add it to the carousel.</li>
+      <li>Upload a poster image (JPG/PNG/WebP, max 5 MB) or paste an image URL.</li>
+      <li>Paste a <strong>YouTube Trailer URL</strong> — a "Watch Trailer" button will appear on the homepage.</li>
+      <li>Set <strong>Display Order</strong> (lower = appears first). Toggle slides on/off without deleting.</li>
+      <li>If no slides are active, the site automatically shows top-rated movies.</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ══════════ ADD MODAL ══════════ -->
+<div class="cm-backdrop" id="addModal">
+  <div class="cm-modal">
+    <div class="cm-modal-head">
+      <h5>🖼️ Add Carousel Slide</h5>
+      <button class="cm-close" onclick="closeModal('addModal')">✕</button>
+    </div>
+    <div class="cm-modal-body">
+      <div class="cm-field">
+        <label>Movie <span class="req">*</span></label>
+        <div class="ms-wrap">
+          <input type="text" id="addMovieSearch" placeholder="Type movie name to search…" autocomplete="off" oninput="searchMovies('add')">
+          <input type="hidden" id="addMovieId">
+          <div class="ms-dd" id="addMovieDd"></div>
+        </div>
+        <div class="hint">Start typing to search your movie database.</div>
+      </div>
+      <div class="cm-field">
+        <label>Badge Label</label>
+        <input type="text" id="addBadge" value="NOW SHOWING" placeholder="e.g. BLOCKBUSTER, AWARD WINNER">
+        <div class="hint">Short text shown on the slide banner.</div>
+      </div>
+      <div class="cm-field">
+        <label>Display Order</label>
+        <input type="number" id="addOrder" value="{{ slides|length }}" min="0" max="99">
+        <div class="hint">Lower = appears first. Use 0, 1, 2, 3…</div>
+      </div>
+      <div class="cm-field">
+        <label>YouTube Trailer URL</label>
+        <input type="text" id="addTrailerUrl" placeholder="https://www.youtube.com/watch?v=…">
+        <div class="hint">Paste a YouTube link to enable "Watch Trailer" on the homepage.</div>
+      </div>
+      <div class="cm-field">
+        <label>Poster Image</label>
+        <img id="addImgPreview" class="img-preview" alt="Preview">
+        <div class="img-zone" id="addDropZone"
+          onclick="document.getElementById('addFileInput').click()"
+          ondragover="event.preventDefault();this.classList.add('drag-over')"
+          ondragleave="this.classList.remove('drag-over')"
+          ondrop="handleDrop(event,'add')">
+          ☁️
+          <p><strong>Click to upload</strong> or drag & drop<br><span style="font-size:.72rem;">JPG, PNG, WebP, GIF — max 5 MB</span></p>
+        </div>
+        <input type="file" id="addFileInput" accept="image/*" style="display:none" onchange="previewImg(this,'add')">
+        <div class="hint">— OR paste an image URL —</div>
+        <input type="text" id="addImageUrl" placeholder="https://example.com/poster.jpg" style="margin-top:7px;" oninput="previewUrl('add')">
+      </div>
+    </div>
+    <div class="cm-modal-foot">
+      <button class="btn-cancel" onclick="closeModal('addModal')">Cancel</button>
+      <button class="btn-save" id="addSaveBtn" onclick="saveSlide()">
+        ➕ Add to Carousel
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ EDIT MODAL ══════════ -->
+<div class="cm-backdrop" id="editModal">
+  <div class="cm-modal">
+    <div class="cm-modal-head">
+      <h5>✏️ Edit Slide</h5>
+      <button class="cm-close" onclick="closeModal('editModal')">✕</button>
+    </div>
+    <div class="cm-modal-body">
+      <input type="hidden" id="editSlideId">
+      <div class="cm-field">
+        <label>Badge Label</label>
+        <input type="text" id="editBadge" placeholder="e.g. NOW SHOWING">
+      </div>
+      <div class="cm-field">
+        <label>Display Order</label>
+        <input type="number" id="editOrder" value="0" min="0" max="99">
+      </div>
+      <div class="cm-field">
+        <label>YouTube Trailer URL</label>
+        <input type="text" id="editTrailerUrl" placeholder="https://www.youtube.com/watch?v=…">
+        <div class="hint">Paste a YouTube link to enable "Watch Trailer" on the homepage.</div>
+      </div>
+      <div class="cm-field">
+        <label>Replace Poster Image (optional)</label>
+        <img id="editImgPreview" class="img-preview" alt="Preview">
+        <div class="img-zone" id="editDropZone"
+          onclick="document.getElementById('editFileInput').click()"
+          ondragover="event.preventDefault();this.classList.add('drag-over')"
+          ondragleave="this.classList.remove('drag-over')"
+          ondrop="handleDrop(event,'edit')">
+          ☁️
+          <p><strong>Click to upload</strong> a new image</p>
+        </div>
+        <input type="file" id="editFileInput" accept="image/*" style="display:none" onchange="previewImg(this,'edit')">
+        <div class="hint">— OR paste a new image URL —</div>
+        <input type="text" id="editImageUrl" placeholder="https://example.com/poster.jpg" style="margin-top:7px;" oninput="previewUrl('edit')">
+      </div>
+    </div>
+    <div class="cm-modal-foot">
+      <button class="btn-cancel" onclick="closeModal('editModal')">Cancel</button>
+      <button class="btn-save" id="editSaveBtn" onclick="updateSlide()">
+        💾 Save Changes
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Toast ──────────────────────────────────────────
+function showToast(msg, type='success') {
+  const t = document.createElement('div');
+  t.className = `cm-toast ${type}`;
+  t.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':'exclamation-circle'}"></i> ${msg}`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// ── Modals ─────────────────────────────────────────
+function openAddModal() {
+  document.getElementById('addMovieSearch').value = '';
+  document.getElementById('addMovieId').value = '';
+  document.getElementById('addBadge').value = 'NOW SHOWING';
+  document.getElementById('addOrder').value = '{{ slides|length }}';
+  document.getElementById('addImageUrl').value = '';
+  document.getElementById('addTrailerUrl').value = '';
+  document.getElementById('addFileInput').value = '';
+  document.getElementById('addImgPreview').style.display = 'none';
+  document.getElementById('addMovieDd').classList.remove('open');
+  document.getElementById('addModal').classList.add('open');
+}
+function openEditModal(id, badge, imageUrl, order, trailerUrl) {
+  document.getElementById('editSlideId').value = id;
+  document.getElementById('editBadge').value = badge;
+  document.getElementById('editOrder').value = order;
+  document.getElementById('editImageUrl').value = imageUrl || '';
+  document.getElementById('editTrailerUrl').value = trailerUrl || '';
+  document.getElementById('editFileInput').value = '';
+  const prev = document.getElementById('editImgPreview');
+  if (imageUrl) { prev.src = imageUrl; prev.style.display = 'block'; }
+  else { prev.style.display = 'none'; }
+  document.getElementById('editModal').classList.add('open');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.cm-backdrop').forEach(b => {
+  b.addEventListener('click', e => { if (e.target === b) closeModal(b.id); });
+});
+
+// ── Movie Search ───────────────────────────────────
+let st;
+function searchMovies(prefix) {
+  clearTimeout(st);
+  const q = document.getElementById(prefix + 'MovieSearch').value.trim();
+  const dd = document.getElementById(prefix + 'MovieDd');
+  if (q.length < 2) { dd.classList.remove('open'); return; }
+  st = setTimeout(async () => {
+    const res = await fetch(`/admin/api/movie-search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    dd.innerHTML = data.length
+      ? data.map(m => `<div class="ms-item" onclick="selectMovie('${prefix}','${m.movie_id}','${m.title.replace(/'/g,"\\'")}')">
+          <div class="ms-title">${m.title}</div>
+          <div class="ms-sub">${m.genre||''} ${m.language ? '• '+m.language : ''}</div>
+        </div>`).join('')
+      : '<div class="ms-item"><div class="ms-sub">No movies found.</div></div>';
+    dd.classList.add('open');
+  }, 280);
+}
+function selectMovie(prefix, id, title) {
+  document.getElementById(prefix + 'MovieSearch').value = title;
+  document.getElementById(prefix + 'MovieId').value = id;
+  document.getElementById(prefix + 'MovieDd').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  ['add','edit'].forEach(p => {
+    const dd = document.getElementById(p + 'MovieDd');
+    if (dd && !dd.closest('.ms-wrap')?.contains(e.target)) dd.classList.remove('open');
+  });
+});
+
+// ── Image preview ──────────────────────────────────
+function previewImg(input, prefix) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const prev = document.getElementById(prefix + 'ImgPreview');
+    prev.src = e.target.result; prev.style.display = 'block';
+    document.getElementById(prefix + 'ImageUrl').value = '';
+  };
+  reader.readAsDataURL(file);
+}
+function previewUrl(prefix) {
+  const url = document.getElementById(prefix + 'ImageUrl').value.trim();
+  const prev = document.getElementById(prefix + 'ImgPreview');
+  if (url) { prev.src = url; prev.style.display = 'block'; document.getElementById(prefix + 'FileInput').value = ''; }
+  else { prev.style.display = 'none'; }
+}
+function handleDrop(event, prefix) {
+  event.preventDefault();
+  document.getElementById(prefix + 'DropZone').classList.remove('drag-over');
+  const file = event.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const dt = new DataTransfer(); dt.items.add(file);
+    const input = document.getElementById(prefix + 'FileInput');
+    input.files = dt.files; previewImg(input, prefix);
+  }
+}
+
+// ── Save Slide ─────────────────────────────────────
+async function saveSlide() {
+  const movieId = document.getElementById('addMovieId').value.trim();
+  if (!movieId) { showToast('Please select a movie first.', 'error'); return; }
+  const btn = document.getElementById('addSaveBtn');
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding…';
+  try {
+    const fd = new FormData();
+    fd.append('movie_id', movieId);
+    fd.append('badge_label', document.getElementById('addBadge').value.trim() || 'NOW SHOWING');
+    fd.append('display_order', document.getElementById('addOrder').value || '0');
+    fd.append('image_url', document.getElementById('addImageUrl').value.trim());
+    fd.append('trailer_url', document.getElementById('addTrailerUrl').value.trim());
+    const file = document.getElementById('addFileInput').files[0];
+    if (file) fd.append('image_file', file);
+    const res = await fetch('/admin/carousel/add', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.success) { showToast(data.message); closeModal('addModal'); setTimeout(() => location.reload(), 700); }
+    else showToast(data.message, 'error');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = '➕ Add to Carousel'; }
+}
+
+// ── Update Slide ───────────────────────────────────
+async function updateSlide() {
+  const id = document.getElementById('editSlideId').value;
+  const btn = document.getElementById('editSaveBtn');
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+  try {
+    const fd = new FormData();
+    fd.append('badge_label', document.getElementById('editBadge').value.trim());
+    fd.append('display_order', document.getElementById('editOrder').value || '0');
+    fd.append('image_url', document.getElementById('editImageUrl').value.trim());
+    fd.append('trailer_url', document.getElementById('editTrailerUrl').value.trim());
+    const file = document.getElementById('editFileInput').files[0];
+    if (file) fd.append('image_file', file);
+    const res = await fetch(`/admin/carousel/${id}/edit`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.success) { showToast(data.message); closeModal('editModal'); setTimeout(() => location.reload(), 700); }
+    else showToast(data.message, 'error');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = '💾 Save Changes'; }
+}
+
+// ── Toggle ─────────────────────────────────────────
+async function toggleSlide(id) {
+  try {
+    const res = await fetch(`/admin/carousel/${id}/toggle`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) { showToast(data.message); setTimeout(() => location.reload(), 600); }
+    else showToast(data.message, 'error');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ── Delete ─────────────────────────────────────────
+async function deleteSlide(id, title) {
+  if (!confirm(`Remove "${title}" from the carousel?`)) return;
+  try {
+    const res = await fetch(`/admin/carousel/${id}/delete`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) { showToast(data.message); document.getElementById(`slide-${id}`)?.remove(); }
+    else showToast(data.message, 'error');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+</script>
+{% endblock %}

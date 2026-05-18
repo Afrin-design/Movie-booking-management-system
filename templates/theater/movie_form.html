@@ -1,0 +1,199 @@
+{% extends "theater/base_owner.html" %}
+{% block title %}{{ action }} Movie – Owner{% endblock %}
+{% block page_title %}{{ action }} Movie{% endblock %}
+
+{% block content %}
+<style>
+/* Clean Light Theme Styling to match the 1st reference image exactly */
+:root {
+  --movie-bg: #f8fafc;
+  --movie-card-bg: #ffffff;
+  --movie-border: #cbd5e1; /* Darker, crisp gray border matching image 1 */
+  --movie-text-main: #334155; /* Solid dark text for input data */
+  --movie-text-label: #1e293b; /* Strong header/label colors */
+  --movie-text-placeholder: #94a3b8; /* Muted placeholder gray */
+  --movie-primary: #2563eb;
+  --movie-primary-hover: #1d4ed8;
+}
+
+.form-card { 
+  background: var(--movie-card-bg);
+  border: 1px solid var(--movie-border);
+  border-radius: 16px;
+  padding: 32px; 
+}
+
+.form-label { 
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--movie-text-label);
+  margin-bottom: 8px; 
+}
+
+.form-control, .form-select {
+  background: #ffffff !important;
+  border: 1px solid var(--movie-border) !important;
+  color: var(--movie-text-main) !important;
+  border-radius: 10px;
+  font-size: .9rem;
+  padding: 10px 14px; 
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: var(--movie-primary) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+  background: #ffffff !important;
+  color: var(--movie-text-main) !important; 
+}
+
+.form-control::placeholder { 
+  color: var(--movie-text-placeholder) !important; 
+  opacity: 1;
+}
+
+/* FIX: Forces dropdown option text to be visible and dark in light mode */
+.form-select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important; /* Dark text for options */
+  padding: 10px;
+}
+
+.submit-btn { 
+  background: var(--movie-primary);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 24px;
+  font-size: .9rem;
+  font-weight: 600;
+  transition: background .15s; 
+}
+
+.submit-btn:hover { 
+  background: var(--movie-primary-hover);
+  color: #fff; 
+}
+
+.cancel-btn { 
+  background: #ffffff;
+  color: var(--movie-text-label);
+  border: 1px solid var(--movie-border);
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: .9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all .15s; 
+}
+
+.cancel-btn:hover { 
+  border-color: var(--movie-text-placeholder);
+  color: var(--movie-text-main); 
+  background: #f8fafc;
+}
+
+.back-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid var(--movie-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  text-decoration: none;
+  color: var(--movie-text-label);
+  transition: all .15s;
+}
+
+.back-btn:hover {
+  background: #f8fafc;
+  border-color: var(--movie-text-placeholder);
+}
+</style>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8 col-xl-7">
+
+    <div class="d-flex align-items-center gap-3 mb-4">
+      <a href="{{ url_for('owner.owner_movies') }}" class="back-btn">←</a>
+      <h4 class="fw-bold mb-0" style="color: var(--movie-text-label); font-family: 'Poppins', sans-serif;">
+        {{ action }} Movie
+      </h4>
+    </div>
+
+    <div class="form-card">
+      <form method="POST" novalidate>
+
+        <div class="mb-4">
+          <label class="form-label">Title <span style="color:#EF4444;">*</span></label>
+          <input type="text" name="title" class="form-control"
+                 value="{{ movie.title if movie else '' }}"
+                 placeholder="e.g. Avengers: Endgame" required>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <label class="form-label">Genre</label>
+            <select name="genre" class="form-select">
+              <option value="" style="color: var(--movie-text-placeholder);">Select genre</option>
+              {% for g in ['Action','Comedy','Drama','Horror','Romance','Sci-Fi','Thriller','Animation','Documentary','Fantasy'] %}
+              <option value="{{ g }}" {{ 'selected' if movie and movie.genre == g }}>{{ g }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Language</label>
+            <select name="language" class="form-select">
+              <option value="" style="color: var(--movie-text-placeholder);">Select language</option>
+              {% for l in ['Hindi','English','Tamil','Telugu','Malayalam','Kannada','Bengali','Marathi'] %}
+              <option value="{{ l }}" {{ 'selected' if movie and movie.language == l }}>{{ l }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label class="form-label">Duration (mins)</label>
+            <input type="number" name="duration" class="form-control"
+                   value="{{ movie.duration if movie else '' }}"
+                   placeholder="120" min="30" max="360">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Rating (0–10)</label>
+            <input type="number" name="rating" class="form-control"
+                   value="{{ movie.rating if movie else '' }}"
+                   placeholder="7.5" min="0" max="10" step="0.1">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Release Date</label>
+            <input type="date" name="release_date" class="form-control"
+                   value="{{ movie.release_date.isoformat() if movie and movie.release_date else '' }}">
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label">Description</label>
+          <textarea name="description" class="form-control" rows="4"
+                    placeholder="Short synopsis...">{{ movie.description if movie else '' }}</textarea>
+        </div>
+
+        <div class="d-flex gap-2 pt-2">
+          <button type="submit" class="submit-btn">
+            {% if action == 'Add' %}
+              Add Movie
+            {% else %}
+              Save Changes
+            {% endif %}
+          </button>
+          <a href="{{ url_for('owner.owner_movies') }}" class="cancel-btn">Cancel</a>
+        </div>
+
+      </form>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

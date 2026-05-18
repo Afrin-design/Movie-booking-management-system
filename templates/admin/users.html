@@ -1,0 +1,131 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Users{% endblock %}
+{% block page_title %}👥 Users{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h5 class="fw-bold mb-0" style="font-family:'Poppins',sans-serif;">👥 All Users</h5>
+    <p class="text-muted small mb-0">{{ pagination.total }} users found</p>
+  </div>
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <div class="btn-group btn-group-sm">
+      <a href="{{ url_for('admin.users') }}" class="btn {{ 'btn-primary' if not selected_role else 'btn-outline-secondary' }}">All</a>
+      <a href="{{ url_for('admin.users', role='user') }}" class="btn {{ 'btn-primary' if selected_role == 'user' else 'btn-outline-secondary' }}">Users</a>
+      <a href="{{ url_for('admin.users', role='theater_owner') }}" class="btn {{ 'btn-primary' if selected_role == 'theater_owner' else 'btn-outline-secondary' }}">Owners</a>
+      <a href="{{ url_for('admin.users', role='admin') }}" class="btn {{ 'btn-primary' if selected_role == 'admin' else 'btn-outline-secondary' }}">Admins</a>
+    </div>
+    <a href="{{ url_for('admin.create_owner') }}" class="btn btn-sm btn-primary">➕ Create Owner</a>
+  </div>
+</div>
+
+<div class="adm-card" style="overflow:hidden;">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" style="font-size:.83rem;">
+      <thead style="background:var(--adm-bg);border-bottom:1px solid var(--adm-border);">
+        <tr>
+          <th style="padding:8px 14px 8px 16px;color:var(--adm-text-3);font-weight:700;font-size:.70rem;text-transform:uppercase;letter-spacing:.06em;">🪪 ID</th>
+          <th style="padding:8px 14px;color:var(--adm-text-3);font-weight:700;font-size:.70rem;text-transform:uppercase;letter-spacing:.06em;">👤 Name</th>
+          <th style="padding:8px 14px;color:var(--adm-text-3);font-weight:700;font-size:.70rem;text-transform:uppercase;letter-spacing:.06em;">✉️ Email</th>
+          <th style="padding:8px 14px;color:var(--adm-text-3);font-weight:700;font-size:.70rem;text-transform:uppercase;letter-spacing:.06em;">📞 Phone</th>
+          <th style="padding:8px 14px;color:var(--adm-text-3);font-weight:700;font-size:.70rem;text-transform:uppercase;letter-spacing:.06em;">📍 City</th>
+          <th style="padding:8px 14px;color:var(--adm-text-3);font-weight:700;font-size:.70rem;text-transform:uppercase;letter-spacing:.06em;">🎭 Role</th>
+          <th style="padding:8px 16px 8px 14px;color:var(--adm-text-3);font-weight:700;font-size:.70rem;text-transform:uppercase;letter-spacing:.06em;text-align:right;">⚙️ Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr style="border-bottom:1px solid var(--adm-border);">
+          <td style="padding:9px 14px 9px 16px;font-size:.76rem;font-family:monospace;color:var(--adm-text-3);">{{ u.user_id }}</td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#06B6D4);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:.85rem;flex-shrink:0;">
+                {{ u.name[0].upper() if u.name else '?' }}
+              </div>
+              <span class="fw-semibold">{{ u.name }}</span>
+            </div>
+          </td>
+          <td class="text-muted" style="font-size:.83rem;">{{ u.email }}</td>
+          <td class="text-muted" style="font-size:.83rem;">
+            {% if u.phone_number %}
+              {{ u.phone_number }}
+            {% else %}
+              <span style="background:#F1F5F9;border:1px solid #E2E8F0;color:#94A3B8;padding:2px 8px;border-radius:20px;font-size:.72rem;">Not provided</span>
+            {% endif %}
+          </td>
+          <td class="text-muted" style="font-size:.83rem;">
+            {% if u.city %}
+              <span style="background:#F1F5F9;border:1px solid #E2E8F0;color:#374151;padding:2px 8px;border-radius:20px;font-size:.75rem;font-weight:600;">📍 {{ u.city }}</span>
+            {% else %}
+              <span style="background:#F1F5F9;border:1px solid #E2E8F0;color:#94A3B8;padding:2px 8px;border-radius:20px;font-size:.72rem;">Not provided</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="POST" action="{{ url_for('admin.set_user_role', user_id=u.user_id) }}" class="d-flex align-items-center gap-1">
+              <select name="role" class="form-select form-select-sm" style="width:130px;font-size:.78rem;border-radius:8px;"
+                      onchange="this.form.submit()">
+                <option value="user"          {{ 'selected' if u.role=='user' }}>👤 User</option>
+                <option value="theater_owner" {{ 'selected' if u.role=='theater_owner' }}>🏟️ Owner</option>
+                <option value="admin"         {{ 'selected' if u.role=='admin' }}>🛡️ Admin</option>
+              </select>
+            </form>
+          </td>
+          <td style="padding:9px 16px 9px 14px;text-align:right;">
+            {% if u.user_id != current_user.user_id %}
+            <form method="POST" action="{{ url_for('admin.delete_user', user_id=u.user_id) }}"
+                  class="d-inline" onsubmit="return confirm('Delete {{ u.name }}? This cannot be undone.')">
+              <button class="btn btn-sm btn-outline-danger" style="padding:4px 12px;font-size:.78rem;border-radius:8px;" title="Delete user">
+                🗑️ Delete
+              </button>
+            </form>
+            {% else %}
+            <span class="text-muted" style="font-size:.78rem;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center py-5 text-muted">
+            <div style="font-size:2.5rem;margin-bottom:10px;">👥</div>
+            No users found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<div class="d-flex align-items-center justify-content-between mt-3 flex-wrap gap-2">
+  <div style="font-size:.78rem;color:#64748B;">
+    Showing <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}–{{ [(pagination.page * pagination.per_page), pagination.total] | min }}</strong>
+    of <strong>{{ pagination.total }}</strong> users
+  </div>
+  <nav>
+    <ul class="pagination pagination-sm mb-0" style="gap:4px;">
+      <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+        <a class="page-link" href="{{ url_for('admin.users', page=pagination.prev_num, role=selected_role) }}"
+           style="border-radius:8px;font-size:.78rem;">&laquo;</a>
+      </li>
+      {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}
+          <li class="page-item {{ 'active' if p == pagination.page }}">
+            <a class="page-link" href="{{ url_for('admin.users', page=p, role=selected_role) }}"
+               style="border-radius:8px;font-size:.78rem;">{{ p }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link" style="border-radius:8px;font-size:.78rem;">…</span></li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+        <a class="page-link" href="{{ url_for('admin.users', page=pagination.next_num, role=selected_role) }}"
+           style="border-radius:8px;font-size:.78rem;">&raquo;</a>
+      </li>
+    </ul>
+  </nav>
+</div>
+{% endif %}
+
+{% endblock %}

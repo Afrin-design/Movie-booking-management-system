@@ -1,0 +1,809 @@
+"""
+routes/owner_analytics.py
+─────────────────────────
+Theater Owner Analytics — 100% dynamic from DB via SQLAlchemy + AJAX APIs.
+Mounted at /owner/analytics via app.py.
+All data scoped to theaters owned by current_user.
+"""
+
+from flask import Blueprint, render_template, jsonify, abort, g
+from flask_login import login_required, current_user
+from database.db import db
+from models.theater_model import Theater
+from models.show_model    import Show
+from models.booking_model import Booking
+from models.payment_model import Payment
+from models.movie_model   import Movie
+from models.screen_model  import Screen
+from models.seats_model   import Seat
+from functools import wraps
+import sqlalchemy as sa
+from datetime import datetime, timedelta
+import calendar
+
+owner_analytics_bp = Blueprint("owner_analytics", __name__)
+
+
+# ── Guards & Helpers ─────────────────────────────────────────────────────────
+
+def owner_required(f):
+    @wraps(f)
+    @login_required
+    def decorated(*args, **kwargs):
+        if current_user.role != "theater_owner":
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated
+
+
+def _safe(val, default=0, cast=int):
+    try:
+        return cast(val) if val is not None else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _my_ids():
+    """
+    Return theater IDs for the current owner.
+    Result is cached on flask.g so it is computed at most ONCE per request,
+    no matter how many helper functions call it.
+    """
+    if hasattr(g, "_owner_theater_ids"):
+        return g._owner_theater_ids
+
+    from sqlalchemy import or_
+    brand_id = getattr(current_user, "brand_id", None)
+    uid      = current_user.user_id
+
+    if brand_id:
+        theaters = Theater.query.filter(
+            or_(
+                Theater.brand_id == brand_id,
+                Theater.owner_id == uid,
+            )
+        ).with_entities(Theater.theater_id).all()
+    else:
+        theaters = Theater.query.filter_by(owner_id=uid)\
+                          .with_entities(Theater.theater_id).all()
+
+    ids = [t.theater_id for t in theaters]
+    g._owner_theater_ids = ids
+    return ids
+
+
+def _revenue_expr():
+    return sa.func.coalesce(
+        sa.func.sum(
+            sa.cast(Show.price_per_ticket, sa.Numeric) * Booking.total_tickets
+        ), 0
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Individual data builders
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _compute_kpis(tid):
+    total_revenue = (
+        db.session.query(_revenue_expr())
+        .select_from(Payment)
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .filter(Payment.transaction_status == "Success",
+                Show.theater_id.in_(tid))
+        .scalar() or 0
+    )
+    total_bookings = (Booking.query.join(Booking.show)
+                      .filter(Show.theater_id.in_(tid)).count())
+    successful = (Booking.query.join(Booking.show).join(Booking.payments)
+                  .filter(Payment.transaction_status == "Success",
+                          Show.theater_id.in_(tid))
+                  .distinct(Booking.booking_id).count())
+    total_shows   = Show.query.filter(Show.theater_id.in_(tid)).count()
+    total_screens = Screen.query.filter(Screen.theater_id.in_(tid)).count()
+    avg = float(total_revenue) / successful if successful else 0
+    return dict(
+        total_revenue       = float(total_revenue),
+        total_bookings      = total_bookings,
+        successful_bookings = successful,
+        total_shows         = total_shows,
+        total_screens       = total_screens,
+        avg_ticket_value    = round(avg, 2),
+    )
+
+
+def _monthly_trend(tid):
+    rows = (
+        db.session.query(
+            sa.func.extract("year",  Booking.booking_date).label("yr"),
+            sa.func.extract("month", Booking.booking_date).label("mo"),
+            _revenue_expr().label("revenue"),
+            sa.func.count(Booking.booking_id).label("cnt"),
+        )
+        .select_from(Payment)
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .filter(
+            Payment.transaction_status == "Success",
+            Show.theater_id.in_(tid),
+            Booking.booking_date >= datetime.now() - timedelta(days=365),
+            Booking.booking_date.isnot(None),
+        )
+        .group_by("yr", "mo").order_by("yr", "mo").all()
+    )
+    labels, revenue, counts = [], [], []
+    for r in rows:
+        mo, yr = _safe(r.mo), _safe(r.yr)
+        if not (1 <= mo <= 12) or yr == 0:
+            continue
+        labels.append(f"{calendar.month_abbr[mo]} {yr}")
+        revenue.append(float(r.revenue))
+        counts.append(_safe(r.cnt))
+    return {"labels": labels, "revenue": revenue, "counts": counts}
+
+
+def _per_theater(tid):
+    rows = (
+        db.session.query(
+            Theater.name, Theater.city,
+            _revenue_expr().label("revenue"),
+            sa.func.count(Booking.booking_id).label("bookings"),
+        )
+        .select_from(Payment)
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .join(Theater, Theater.theater_id == Show.theater_id)
+        .filter(Payment.transaction_status == "Success",
+                Show.theater_id.in_(tid))
+        .group_by(Theater.theater_id, Theater.name, Theater.city)
+        .order_by(sa.desc("revenue")).all()
+    )
+    return {
+        "labels":   [f"{r.name} ({r.city})" for r in rows],
+        "revenue":  [float(r.revenue)        for r in rows],
+        "bookings": [_safe(r.bookings)       for r in rows],
+    }
+
+
+def _top_shows(tid):
+    rows = (
+        db.session.query(
+            Movie.title, Show.show_date, Show.start_time,
+            _revenue_expr().label("revenue"),
+            sa.func.sum(Booking.total_tickets).label("tickets"),
+        )
+        .select_from(Payment)
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .join(Movie,   Movie.movie_id     == Show.movie_id)
+        .filter(Payment.transaction_status == "Success",
+                Show.theater_id.in_(tid))
+        .group_by(Show.show_id, Movie.title, Show.show_date, Show.start_time)
+        .order_by(sa.desc("revenue")).limit(10).all()
+    )
+    return {
+        "labels":  [f"{r.title} ({r.show_date})" for r in rows],
+        "revenue": [float(r.revenue)              for r in rows],
+        "tickets": [_safe(r.tickets)              for r in rows],
+    }
+
+
+def _top_movies(tid):
+    rows = (
+        db.session.query(
+            Movie.title,
+            _revenue_expr().label("revenue"),
+            sa.func.sum(Booking.total_tickets).label("tickets"),
+        )
+        .select_from(Payment)
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .join(Movie,   Movie.movie_id     == Show.movie_id)
+        .filter(Payment.transaction_status == "Success",
+                Show.theater_id.in_(tid))
+        .group_by(Movie.title)
+        .order_by(sa.desc("revenue")).limit(10).all()
+    )
+    return {
+        "labels":  [r.title          for r in rows],
+        "revenue": [float(r.revenue) for r in rows],
+        "tickets": [_safe(r.tickets) for r in rows],
+    }
+
+
+def _screen_util(tid):
+    rows = (
+        db.session.query(
+            Screen.screen_number,
+            sa.func.count(sa.distinct(Show.show_id)).label("shows"),
+            sa.func.count(Booking.booking_id).label("bookings"),
+            _revenue_expr().label("revenue"),
+        )
+        .select_from(Screen)
+        .outerjoin(Show,    Show.screen_id    == Screen.screen_id)
+        .outerjoin(Booking, Booking.show_id   == Show.show_id)
+        .outerjoin(Payment, Payment.booking_id == Booking.booking_id)
+        .filter(
+            Screen.theater_id.in_(tid),
+            sa.or_(Payment.transaction_status == "Success",
+                   Payment.transaction_status.is_(None))
+        )
+        .group_by(Screen.screen_id, Screen.screen_number)
+        .order_by(sa.desc("revenue")).all()
+    )
+    return {
+        "labels":   [f"Screen {r.screen_number}" for r in rows],
+        "shows":    [_safe(r.shows)              for r in rows],
+        "bookings": [_safe(r.bookings)           for r in rows],
+        "revenue":  [float(r.revenue)            for r in rows],
+    }
+
+
+def _dow_pattern(tid):
+    rows = (
+        db.session.query(
+            sa.func.extract("dow", Booking.booking_date).label("dow"),
+            sa.func.count(Booking.booking_id).label("cnt"),
+            _revenue_expr().label("revenue"),
+        )
+        .select_from(Payment)
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .filter(
+            Payment.transaction_status == "Success",
+            Show.theater_id.in_(tid),
+            Booking.booking_date.isnot(None),
+        )
+        .group_by("dow").order_by("dow").all()
+    )
+    dow_map = {_safe(r.dow): (_safe(r.cnt), float(r.revenue)) for r in rows}
+    day_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    return {
+        "labels":  day_names,
+        "counts":  [dow_map.get(i, (0, 0))[0] for i in range(7)],
+        "revenue": [dow_map.get(i, (0, 0))[1] for i in range(7)],
+    }
+
+
+def _hourly_pattern(tid):
+    """Peak booking hours based on show start_time."""
+    rows = (
+        db.session.query(
+            sa.func.substr(Show.start_time, 1, 2).label("hr"),
+            sa.func.count(Booking.booking_id).label("cnt"),
+        )
+        .select_from(Payment)
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .filter(
+            Payment.transaction_status == "Success",
+            Show.theater_id.in_(tid),
+            Show.start_time.isnot(None),
+        )
+        .group_by("hr").order_by("hr").all()
+    )
+    hour_map = {str(r.hr).zfill(2): _safe(r.cnt) for r in rows}
+    all_hours = [f"{h:02d}:00" for h in range(24)]
+    return {
+        "labels": all_hours,
+        "counts": [hour_map.get(f"{h:02d}", 0) for h in range(24)],
+    }
+
+
+def _payment_methods(tid):
+    rows = (
+        db.session.query(
+            Payment.payment_method,
+            sa.func.count(Payment.payment_id).label("cnt"),
+            _revenue_expr().label("revenue"),
+        )
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .filter(Payment.transaction_status == "Success",
+                Show.theater_id.in_(tid))
+        .group_by(Payment.payment_method)
+        .order_by(sa.desc("cnt")).all()
+    )
+    return {
+        "labels":  [r.payment_method or "Other" for r in rows],
+        "counts":  [_safe(r.cnt)                for r in rows],
+        "revenue": [float(r.revenue)            for r in rows],
+    }
+
+
+def _seat_types(tid):
+    rows = (
+        db.session.query(
+            Seat.seat_type,
+            sa.func.count(Seat.seat_id).label("cnt"),
+            sa.func.coalesce(
+                sa.func.sum(sa.cast(Seat.charges, sa.Numeric)), 0
+            ).label("charges"),
+        )
+        .join(Screen, Screen.screen_id == Seat.screen_id)
+        .filter(
+            Screen.theater_id.in_(tid),
+            Seat.status == "Booked",
+            Seat.seat_type.isnot(None),
+        )
+        .group_by(Seat.seat_type)
+        .order_by(sa.desc("cnt")).all()
+    )
+    return {
+        "labels":  [r.seat_type or "Unknown" for r in rows],
+        "counts":  [_safe(r.cnt)             for r in rows],
+        "charges": [float(r.charges)         for r in rows],
+    }
+
+
+def _occupancy(tid):
+    total  = (db.session.query(sa.func.count(Seat.seat_id))
+              .join(Screen, Screen.screen_id == Seat.screen_id)
+              .filter(Screen.theater_id.in_(tid)).scalar() or 0)
+    booked = (db.session.query(sa.func.count(Seat.seat_id))
+              .join(Screen, Screen.screen_id == Seat.screen_id)
+              .filter(Screen.theater_id.in_(tid), Seat.status == "Booked")
+              .scalar() or 0)
+    pct = round(booked / total * 100, 1) if total else 0
+    return {"total": total, "booked": booked, "pct": pct}
+
+
+def _genre_breakdown(tid):
+    rows = (
+        db.session.query(
+            Movie.genre,
+            _revenue_expr().label("revenue"),
+            sa.func.count(Booking.booking_id).label("cnt"),
+        )
+        .select_from(Payment)
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .join(Movie,   Movie.movie_id     == Show.movie_id)
+        .filter(Payment.transaction_status == "Success",
+                Show.theater_id.in_(tid))
+        .group_by(Movie.genre)
+        .order_by(sa.desc("revenue")).all()
+    )
+    return {
+        "labels":  [r.genre or "Unknown" for r in rows],
+        "revenue": [float(r.revenue)     for r in rows],
+        "counts":  [_safe(r.cnt)         for r in rows],
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MAIN PAGE ROUTE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@owner_analytics_bp.route("/")
+@owner_required
+def analytics():
+    """
+    Renders the page shell instantly.
+    All heavy data is loaded via AJAX from /api/* endpoints after page load.
+    """
+    brand_id = getattr(current_user, "brand_id", None)
+    if brand_id:
+        theaters = Theater.query.filter_by(brand_id=brand_id).all()
+    else:
+        theaters = Theater.query.filter_by(owner_id=current_user.user_id).all()
+
+    if not theaters:
+        return render_template("theater/analytics.html",
+                               no_theaters=True, theaters=theaters)
+
+    return render_template("theater/analytics.html",
+        no_theaters = False,
+        theaters    = theaters,
+        lazy_load   = True,   # tells template to use AJAX loaders
+        # Pass empty/zero defaults so template doesn't crash on missing vars
+        total_revenue=0, total_bookings=0, successful_bookings=0,
+        cancellation_rate=0, avg_ticket_price=0, unique_customers=0,
+        monthly_labels=[], monthly_revenue=[], monthly_counts=[],
+        theater_labels=[], theater_revenue=[], theater_bookings=[],
+        top_show_labels=[], top_show_revenue=[], top_show_tickets=[],
+        movie_labels=[], movie_revenue=[], movie_tickets=[],
+        screen_labels=[], screen_shows=[], screen_bookings=[], screen_revenue=[],
+        dow_labels=[], dow_counts=[], dow_revenue=[],
+        hourly_labels=[], hourly_counts=[],
+        pay_labels=[], pay_counts=[], pay_revenue=[],
+        seat_labels=[], seat_counts=[], seat_charges=[],
+        occ_total=0, occ_booked=0, occ_pct=0,
+        genre_labels=[], genre_revenue=[], genre_counts=[],
+        brand_vs=None,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  AJAX API ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@owner_analytics_bp.route("/api/kpis")
+@owner_required
+def api_kpis():
+    return jsonify(_compute_kpis(_my_ids()))
+
+@owner_analytics_bp.route("/api/monthly")
+@owner_required
+def api_monthly():
+    return jsonify(_monthly_trend(_my_ids()))
+
+@owner_analytics_bp.route("/api/theaters")
+@owner_required
+def api_theaters():
+    return jsonify(_per_theater(_my_ids()))
+
+@owner_analytics_bp.route("/api/movies")
+@owner_required
+def api_movies():
+    return jsonify(_top_movies(_my_ids()))
+
+@owner_analytics_bp.route("/api/shows")
+@owner_required
+def api_shows():
+    return jsonify(_top_shows(_my_ids()))
+
+@owner_analytics_bp.route("/api/screens")
+@owner_required
+def api_screens():
+    return jsonify(_screen_util(_my_ids()))
+
+@owner_analytics_bp.route("/api/dow")
+@owner_required
+def api_dow():
+    return jsonify(_dow_pattern(_my_ids()))
+
+@owner_analytics_bp.route("/api/hourly")
+@owner_required
+def api_hourly():
+    return jsonify(_hourly_pattern(_my_ids()))
+
+@owner_analytics_bp.route("/api/payments")
+@owner_required
+def api_payments():
+    return jsonify(_payment_methods(_my_ids()))
+
+@owner_analytics_bp.route("/api/seats")
+@owner_required
+def api_seats():
+    return jsonify(_seat_types(_my_ids()))
+
+@owner_analytics_bp.route("/api/occupancy")
+@owner_required
+def api_occupancy():
+    return jsonify(_occupancy(_my_ids()))
+
+@owner_analytics_bp.route("/api/genre")
+@owner_required
+def api_genre():
+    return jsonify(_genre_breakdown(_my_ids()))
+
+@owner_analytics_bp.route("/api/all")
+@owner_required
+def api_all():
+    """Single endpoint returning all analytics — used for auto-refresh."""
+    tid = _my_ids()
+    def safe(fn, *args, default=None):
+        try:
+            return fn(*args)
+        except Exception:
+            return default or {}
+    return jsonify({
+        "kpis":     safe(_compute_kpis, tid),
+        "monthly":  safe(_monthly_trend, tid),
+        "theaters": safe(_per_theater, tid),
+        "movies":   safe(_top_movies, tid),
+        "shows":    safe(_top_shows, tid),
+        "screens":  safe(_screen_util, tid),
+        "dow":      safe(_dow_pattern, tid),
+        "hourly":   safe(_hourly_pattern, tid),
+        "payments": safe(_payment_methods, tid),
+        "seats":    safe(_seat_types, tid),
+        "occupancy":safe(_occupancy, tid),
+        "genre":    safe(_genre_breakdown, tid),
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  EXTENDED OWNER APIs
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _owner_daily(tid, days=90):
+    # Primary: bookings with successful payments
+    rows = (
+        db.session.query(
+            sa.func.date(Booking.booking_date).label("day"),
+            sa.func.count(Booking.booking_id).label("cnt"),
+            _revenue_expr().label("revenue"),
+        )
+        .select_from(Payment)
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .filter(
+            Payment.transaction_status == "Success",
+            Show.theater_id.in_(tid),
+            Booking.booking_date >= datetime.now() - timedelta(days=days),
+            Booking.booking_date.isnot(None),
+        )
+        .group_by(sa.func.date(Booking.booking_date))
+        .order_by("day").all()
+    )
+
+    # Fallback: if no payment-linked data, count bookings directly
+    if not rows:
+        rows = (
+            db.session.query(
+                sa.func.date(Booking.booking_date).label("day"),
+                sa.func.count(Booking.booking_id).label("cnt"),
+                sa.func.coalesce(
+                    sa.func.sum(Booking.total_amount), 0
+                ).label("revenue"),
+            )
+            .join(Show, Show.show_id == Booking.show_id)
+            .filter(
+                Show.theater_id.in_(tid),
+                Booking.booking_date >= datetime.now() - timedelta(days=days),
+                Booking.booking_date.isnot(None),
+            )
+            .group_by(sa.func.date(Booking.booking_date))
+            .order_by("day").all()
+        )
+
+    return {
+        "labels":  [str(r.day) for r in rows],
+        "counts":  [_safe(r.cnt) for r in rows],
+        "revenue": [float(r.revenue) for r in rows],
+    }
+
+
+def _owner_timeslot(tid):
+    slots = {"Morning(6-12)": 0, "Afternoon(12-17)": 0,
+             "Evening(17-21)": 0, "Night(21-24)": 0}
+    rev   = {"Morning(6-12)": 0, "Afternoon(12-17)": 0,
+             "Evening(17-21)": 0, "Night(21-24)": 0}
+    rows = (
+        db.session.query(
+            sa.func.substr(Show.start_time, 1, 2).label("hr"),
+            sa.func.count(Booking.booking_id).label("cnt"),
+            _revenue_expr().label("revenue"),
+        )
+        .select_from(Payment)
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .filter(
+            Payment.transaction_status == "Success",
+            Show.theater_id.in_(tid),
+            Show.start_time.isnot(None),
+        )
+        .group_by("hr").all()
+    )
+    for r in rows:
+        try: h = int(str(r.hr).strip())
+        except: continue
+        if 6 <= h < 12:   key = "Morning(6-12)"
+        elif 12 <= h < 17: key = "Afternoon(12-17)"
+        elif 17 <= h < 21: key = "Evening(17-21)"
+        else:               key = "Night(21-24)"
+        slots[key] += _safe(r.cnt)
+        rev[key]   += float(r.revenue)
+    return {"labels": list(slots.keys()), "counts": list(slots.values()), "revenue": list(rev.values())}
+
+
+def _owner_booking_status(tid):
+    rows = (
+        db.session.query(
+            Payment.transaction_status,
+            sa.func.count(Payment.payment_id).label("cnt"),
+        )
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .filter(Show.theater_id.in_(tid))
+        .group_by(Payment.transaction_status).all()
+    )
+    return {"labels": [r.transaction_status or "Unknown" for r in rows],
+            "counts": [_safe(r.cnt) for r in rows]}
+
+
+def _owner_screen_type_revenue(tid):
+    """Revenue by seat type (Gold/Silver/General) — Screen has no screen_type field."""
+    rows = (
+        db.session.query(
+            Seat.seat_type,
+            sa.func.count(sa.distinct(Booking.booking_id)).label("cnt"),
+            sa.func.coalesce(sa.func.sum(
+                sa.cast(Show.price_per_ticket, sa.Numeric) * Booking.total_tickets
+            ), 0).label("revenue"),
+        )
+        .select_from(Seat)
+        .join(Booking, Booking.booking_id == Seat.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .join(Screen,  Screen.screen_id   == Seat.screen_id)
+        .join(Payment, Payment.booking_id == Booking.booking_id)
+        .filter(
+            Payment.transaction_status == "Success",
+            Screen.theater_id.in_(tid),
+            Seat.seat_type.isnot(None),
+        )
+        .group_by(Seat.seat_type)
+        .order_by(sa.desc("cnt")).all()
+    )
+    return {"labels":  [r.seat_type or "Standard" for r in rows],
+            "counts":  [_safe(r.cnt) for r in rows],
+            "revenue": [float(r.revenue) for r in rows]}
+
+
+@owner_analytics_bp.route("/api/daily")
+@owner_required
+def api_daily():
+    return jsonify(_owner_daily(_my_ids()))
+
+
+@owner_analytics_bp.route("/api/timeslot")
+@owner_required
+def api_timeslot():
+    return jsonify(_owner_timeslot(_my_ids()))
+
+
+@owner_analytics_bp.route("/api/status")
+@owner_required
+def api_status():
+    return jsonify(_owner_booking_status(_my_ids()))
+
+
+@owner_analytics_bp.route("/api/screentype")
+@owner_required
+def api_screentype():
+    return jsonify(_owner_screen_type_revenue(_my_ids()))
+
+
+@owner_analytics_bp.route("/api/extended")
+@owner_required
+def api_extended():
+    tid = _my_ids()
+    def safe(fn, *args, default=None):
+        try:
+            return fn(*args)
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            return default or {}
+    return jsonify({
+        "daily":      safe(_owner_daily, tid),
+        "timeslot":   safe(_owner_timeslot, tid),
+        "status":     safe(_owner_booking_status, tid),
+        "screentype": safe(_owner_screen_type_revenue, tid),
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  BRAND VS PLATFORM COMPARISON  (added: brand-owner mapping system)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from models.brand_model import TheaterBrand
+from models.user_model  import User as _User
+
+
+def _brand_vs_platform(tid):
+    """
+    Compare current owner's brand performance against platform averages.
+    Returns a dict with my_* and avg_* keys.
+    """
+    brand_id = getattr(current_user, "brand_id", None)
+
+    # My brand metrics
+    my_rev = (
+        db.session.query(_revenue_expr())
+        .select_from(Payment)
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .filter(Payment.transaction_status == "Success",
+                Show.theater_id.in_(tid))
+        .scalar() or 0
+    )
+    my_bookings = (
+        Booking.query.join(Booking.show)
+        .filter(Show.theater_id.in_(tid)).count()
+    )
+    my_theaters = len(tid)
+    my_occupancy = 0
+    if my_theaters:
+        from models.seats_model import Seat as _Seat
+        from models.screen_model import Screen as _Screen
+        screens_in_brand = (
+            _Screen.query.filter(_Screen.theater_id.in_(tid))
+            .with_entities(_Screen.screen_id).all()
+        )
+        scr_ids = [s.screen_id for s in screens_in_brand]
+        if scr_ids:
+            total_seats  = db.session.query(sa.func.count(_Seat.seat_id)).filter(_Seat.screen_id.in_(scr_ids)).scalar() or 0
+            booked_seats = db.session.query(sa.func.count(_Seat.seat_id)).filter(_Seat.screen_id.in_(scr_ids), _Seat.status == "Booked").scalar() or 0
+            my_occupancy = round(booked_seats / total_seats * 100, 1) if total_seats else 0
+
+    # Platform totals (all brands with owners)
+    all_theater_ids = [
+        t.theater_id for t in Theater.query.filter(Theater.brand_id.isnot(None)).all()
+    ]
+    brand_count = db.session.query(
+        sa.func.count(sa.distinct(Theater.brand_id))
+    ).filter(Theater.brand_id.isnot(None)).scalar() or 1
+
+    total_rev = (
+        db.session.query(_revenue_expr())
+        .select_from(Payment)
+        .join(Booking, Booking.booking_id == Payment.booking_id)
+        .join(Show,    Show.show_id       == Booking.show_id)
+        .filter(Payment.transaction_status == "Success",
+                Show.theater_id.in_(all_theater_ids))
+        .scalar() or 0
+    )
+    total_bookings  = (
+        Booking.query.join(Booking.show)
+        .filter(Show.theater_id.in_(all_theater_ids)).count()
+    )
+    total_theaters  = len(all_theater_ids)
+
+    avg_rev      = round(float(total_rev)      / brand_count, 2)
+    avg_bookings = round(total_bookings        / brand_count, 1)
+    avg_theaters = round(total_theaters        / brand_count, 1)
+
+    rev_pct  = round((float(my_rev) - avg_rev) / avg_rev * 100, 1) if avg_rev else 0
+    book_pct = round((my_bookings - avg_bookings) / avg_bookings * 100, 1) if avg_bookings else 0
+
+    return {
+        "my_revenue":      float(my_rev),
+        "my_bookings":     my_bookings,
+        "my_theaters":     my_theaters,
+        "my_occupancy":    my_occupancy,
+        "avg_revenue":     avg_rev,
+        "avg_bookings":    avg_bookings,
+        "avg_theaters":    avg_theaters,
+        "rev_pct":         rev_pct,
+        "book_pct":        book_pct,
+        "brand_count":     brand_count,
+        "brand_name":      current_user.brand.brand_name if current_user.brand else "—",
+    }
+
+
+@owner_analytics_bp.route("/api/mega")
+@owner_required
+def api_mega():
+    """
+    Single endpoint that returns ALL analytics data in one round-trip.
+    Replaces the separate /api/all + /api/extended calls on page load.
+    _my_ids() is called once and reused via flask.g cache.
+    """
+    tid = _my_ids()
+
+    def safe(fn, *args, default=None):
+        try:
+            return fn(*args)
+        except Exception:
+            return default or {}
+
+    return jsonify({
+        # core
+        "kpis":       safe(_compute_kpis,   tid),
+        "monthly":    safe(_monthly_trend,   tid),
+        "theaters":   safe(_per_theater,     tid),
+        "movies":     safe(_top_movies,      tid),
+        "shows":      safe(_top_shows,       tid),
+        "screens":    safe(_screen_util,     tid),
+        "dow":        safe(_dow_pattern,     tid),
+        "hourly":     safe(_hourly_pattern,  tid),
+        "payments":   safe(_payment_methods, tid),
+        "seats":      safe(_seat_types,      tid),
+        "occupancy":  safe(_occupancy,       tid),
+        "genre":      safe(_genre_breakdown, tid),
+        # extended
+        "daily":      safe(_owner_daily,          tid),
+        "timeslot":   safe(_owner_timeslot,        tid),
+        "status":     safe(_owner_booking_status,  tid),
+        "screentype": safe(_owner_screen_type_revenue, tid),
+    })
+
+
+@owner_analytics_bp.route("/api/brand-comparison")
+@owner_required
+def api_brand_comparison():
+    return jsonify(_brand_vs_platform(_my_ids()))
+

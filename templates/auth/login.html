@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Login – CineHub{% endblock %}
+{% block content %}
+<div style="min-height:92vh;background:linear-gradient(135deg,#070B14 0%,#0D1425 50%,#111A33 100%);display:flex;align-items:center;justify-content:center;padding:40px 20px;position:relative;overflow:hidden;">
+  <!-- Decorative blobs -->
+  <div style="position:absolute;top:-100px;right:-100px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,.12),transparent);pointer-events:none;"></div>
+  <div style="position:absolute;bottom:-120px;left:-80px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(245,158,11,.07),transparent);pointer-events:none;"></div>
+  <!-- Grid overlay -->
+  <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(59,130,246,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;"></div>
+
+  <div style="width:440px;max-width:100%;position:relative;z-index:1;">
+    <div class="text-center mb-5">
+      <a href="{{ url_for('user.home') }}" style="text-decoration:none;">
+        <div style="font-family:'Poppins',sans-serif;font-size:2.4rem;font-weight:900;color:#fff;letter-spacing:-1px;">Cine<span style="color:#3B82F6;">Hub</span> <span style="font-size:1.6rem;vertical-align:middle;">🎬</span></div>
+      </a>
+      <p style="color:rgba(255,255,255,.4);font-size:.88rem;margin-top:6px;">🎬 Your Cinema, Your Choice</p>
+    </div>
+
+    <div style="background:rgba(15,24,41,.9);border:1px solid rgba(59,130,246,.18);border-radius:22px;padding:36px;box-shadow:0 32px 80px rgba(0,0,0,.6),0 0 40px rgba(59,130,246,.08);backdrop-filter:blur(20px);">
+      <h4 style="font-family:'Poppins',sans-serif;font-weight:800;margin-bottom:4px;color:#F0F4FF;">Welcome Back 👋</h4>
+      <p style="color:rgba(200,215,255,.5);font-size:.88rem;margin-bottom:28px;">Sign in to continue booking</p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }} mb-3">{{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+
+      <form id="login-form" method="POST" novalidate>
+        <div class="mb-3">
+          <label class="form-label">Email Address</label>
+          <div class="input-group has-validation">
+            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+            <input type="email" name="email" class="form-control" placeholder="you@example.com" required autofocus>
+            <div class="invalid-feedback">Please enter a valid email.</div>
+          </div>
+        </div>
+        <div class="mb-1">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label mb-0">Password</label>
+            <a href="{{ url_for('auth.forgot_password') }}" style="font-size:.8rem;color:#3B82F6;text-decoration:none;font-weight:600;">Forgot password?</a>
+          </div>
+          <div class="input-group has-validation">
+            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+            <input type="password" name="password" id="pwdInput" class="form-control" placeholder="••••••••" required>
+            <button class="input-group-text" type="button" onclick="togglePwd()" style="cursor:pointer;border-left:none;">
+              <i class="bi bi-eye" id="eyeIcon"></i>
+            </button>
+            <div class="invalid-feedback">Please enter your password.</div>
+          </div>
+        </div>
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        <button type="submit" style="width:100%;margin-top:24px;padding:13px;font-size:.95rem;font-family:'Poppins',sans-serif;font-weight:700;border-radius:12px;cursor:pointer;border:none;background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;box-shadow:0 6px 24px rgba(59,130,246,.45);transition:all .2s;">
+          <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+        </button>
+      </form>
+
+      <div style="display:flex;align-items:center;gap:12px;margin:20px 0;">
+        <div style="flex:1;height:1px;background:rgba(59,130,246,.15);"></div>
+        <span style="color:rgba(200,215,255,.3);font-size:.78rem;">or</span>
+        <div style="flex:1;height:1px;background:rgba(59,130,246,.15);"></div>
+      </div>
+
+      <p class="text-center mb-0" style="font-size:.85rem;color:rgba(200,215,255,.5);">
+        Don't have an account? <a href="{{ url_for('auth.register') }}" style="color:#3B82F6;font-weight:700;">Sign Up Free</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function togglePwd() {
+  const f = document.getElementById("pwdInput"), i = document.getElementById("eyeIcon");
+  f.type = (f.type === "password") ? "text" : "password";
+  i.className = (f.type === "text") ? "bi bi-eye-slash" : "bi bi-eye";
+}
+</script>
+{% endblock %}

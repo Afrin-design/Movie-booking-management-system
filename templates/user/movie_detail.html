@@ -1,0 +1,721 @@
+{% extends "base.html" %}
+{% block title %}{{ movie.title }} — CineHub{% endblock %}
+
+{% block head %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Movie detail Barlow overrides */
+.movie-detail-hero h1, .movie-detail-hero h2,
+.book-section h5, .book-section h6 {
+  font-family:'Poppins',sans-serif !important; font-weight:800 !important;
+}
+.date-pill .dp-num { font-family:'Poppins',sans-serif !important; font-weight:900 !important; }
+.date-pill .dp-day, .date-pill .dp-mon { font-family:'Inter',sans-serif !important; }
+.show-time-val { font-family:'Poppins',sans-serif !important; font-weight:800 !important; }
+.show-price    { font-family:'Poppins',sans-serif !important; font-weight:800 !important; }
+.theater-card .theater-name { font-family:'Poppins',sans-serif !important; font-weight:800 !important; font-size:1.1rem !important; letter-spacing:.5px; }
+.btn-book { font-family:'Poppins',sans-serif !important; font-weight:800 !important; letter-spacing:1px !important; }
+
+/* ══ HERO ══════════════════════════════════════════════════════ */
+.movie-detail-hero {
+  position:relative; padding:3rem 0 2rem; overflow:hidden; min-height:280px;
+}
+.hero-backdrop {
+  position:absolute; inset:0; background-size:cover; background-position:center top;
+  filter:blur(28px) brightness(.32) saturate(1.4); transform:scale(1.08); z-index:0;
+}
+.hero-backdrop-overlay {
+  position:absolute; inset:0; z-index:1;
+  background:linear-gradient(180deg,rgba(5,10,20,.5) 0%,rgba(5,10,20,.94) 100%);
+}
+.hero-content { position:relative; z-index:2; }
+.hero-poster {
+  width:130px; height:190px; object-fit:cover; border-radius:12px;
+  box-shadow:0 12px 40px rgba(0,0,0,.7); border:2px solid rgba(255,255,255,.12); display:block;
+}
+.hero-poster-ph {
+  width:130px; height:190px; border-radius:12px;
+  background:linear-gradient(135deg,rgba(59,130,246,.35),rgba(59,130,246,.2));
+  display:flex; align-items:center; justify-content:center;
+  font-size:2rem; font-weight:800; color:rgba(255,255,255,.5);
+  border:2px solid rgba(255,255,255,.1);
+}
+
+/* ══ DATE STRIP ════════════════════════════════════════════════ */
+.date-strip { display:flex; gap:8px; overflow-x:auto; padding:4px 0 10px; scrollbar-width:none; }
+.date-strip::-webkit-scrollbar { display:none; }
+.date-pill {
+  flex:0 0 auto; display:flex; flex-direction:column; align-items:center;
+  min-width:64px; padding:9px 14px; border-radius:12px; cursor:pointer;
+  border:2px solid var(--border-1); background:var(--bg-2);
+  transition:all .22s; user-select:none;
+}
+.date-pill .dp-day { font-size:.65rem; font-weight:700; color:var(--txt-muted); letter-spacing:.5px; text-transform:uppercase; }
+.date-pill .dp-num { font-size:1.3rem; font-weight:800; color:var(--txt-primary); line-height:1.1; }
+.date-pill .dp-mon { font-size:.62rem; color:var(--txt-muted); margin-top:1px; }
+.date-pill.today   { border-color:rgba(245,166,35,.45); }
+.date-pill.today .dp-day { color:#f59e0b; }
+.date-pill:hover:not(.active) { border-color:rgba(59,130,246,.4); background:rgba(59,130,246,.06); }
+.date-pill.active  {
+  border-color:var(--ch-primary) !important;
+  background:linear-gradient(135deg,rgba(59,130,246,.2),rgba(245,66,108,.12)) !important;
+  box-shadow:0 4px 16px rgba(59,130,246,.25);
+}
+.date-pill.active .dp-day,
+.date-pill.active .dp-num,
+.date-pill.active .dp-mon { color:#f5426c !important; }
+
+/* ══ THEATER CARD ══════════════════════════════════════════════ */
+.theater-card {
+  border:1px solid var(--border-1); border-radius:14px;
+  background:var(--bg-card); margin-bottom:14px; overflow:hidden;
+  transition:border-color .2s;
+}
+.theater-card:hover { border-color:rgba(59,130,246,.3); }
+.theater-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px; background:var(--bg-2);
+  border-bottom:1px solid var(--border-1); flex-wrap:wrap; gap:8px;
+}
+.theater-name { font-weight:800; font-size:.97rem; color:var(--txt-primary); }
+.theater-loc  { font-size:.75rem; color:var(--txt-muted); margin-top:2px; }
+.show-count   {
+  font-size:.68rem; font-weight:700; padding:3px 10px; border-radius:20px;
+  background:rgba(59,130,246,.12); color:#f5426c;
+  border:1px solid rgba(59,130,246,.25);
+}
+
+/* ══ SHOW ROW ══════════════════════════════════════════════════ */
+.show-rows { padding:10px 18px; }
+.show-row {
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:10px;
+  padding:13px 0; border-bottom:1px solid var(--border-1);
+}
+.show-row:last-child { border-bottom:none; padding-bottom:0; }
+
+.show-time-val {
+  font-size:1.25rem; font-weight:900; color:var(--txt-primary);
+  font-family:'Poppins',sans-serif;
+}
+.show-date-val { font-size:.72rem; color:var(--txt-muted); margin-top:2px; }
+.fmt-badge {
+  display:inline-block; font-size:.6rem; font-weight:800;
+  letter-spacing:.5px; padding:2px 8px; border-radius:5px;
+  background:rgba(251,191,36,.1); color:#fbbf24;
+  border:1px solid rgba(251,191,36,.25);
+}
+.avail-ok   { font-size:.75rem; font-weight:700; color:#22c55e; }
+.avail-few  { font-size:.75rem; font-weight:700; color:#f59e0b; }
+.avail-none { font-size:.75rem; font-weight:700; color:#ef4444; }
+.show-price { font-size:.95rem; font-weight:800; color:var(--ch-primary); }
+.show-price-sub { font-size:.62rem; color:var(--txt-muted); }
+
+.btn-book {
+  display:inline-flex; align-items:center; gap:6px;
+  background:linear-gradient(135deg,var(--ch-primary),#c00);
+  color:#fff; border:none; padding:10px 22px; border-radius:10px;
+  font-size:.82rem; font-weight:800; text-decoration:none;
+  box-shadow:0 3px 14px rgba(59,130,246,.3); transition:all .2s; white-space:nowrap;
+}
+.btn-book:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(59,130,246,.45); color:#fff; }
+.btn-book-soldout {
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(255,255,255,.05); color:rgba(255,255,255,.25);
+  border:1px solid rgba(255,255,255,.08); padding:10px 22px; border-radius:10px;
+  font-size:.82rem; font-weight:700; cursor:not-allowed;
+}
+
+/* ══ MOVIE PAGE BODY ═══════════════════════════════════════════ */
+.movie-page-body { background:var(--bg-0); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="background:var(--bg-0);min-height:100vh;">
+
+<!-- ══ CINEMATIC HERO ══════════════════════════════════════════ -->
+{% set hp = namespace(url='') %}
+{% set tl = movie.title|lower %}
+{% set PM = {
+  'avengers':'https://image.tmdb.org/t/p/w500/or06FN3Dka5tukK1e9sl16pB3iy.jpg',
+  'spider':'https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg',
+  'batman':'https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg',
+  'inception':'https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg',
+  'interstellar':'https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
+  'joker':'https://image.tmdb.org/t/p/w500/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg',
+  'dune':'https://image.tmdb.org/t/p/w500/d5NXSklpcvkCgnpLIOuTkTTkmFc.jpg',
+  'oppenheimer':'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg',
+  'barbie':'https://image.tmdb.org/t/p/w500/iuFNMS8U5cb6xfzi51Dbkovj7vM.jpg',
+  'kalki':'https://image.tmdb.org/t/p/w500/oaGvjB0DvdhXhOAuADfHb261ZHa.jpg',
+  'pushpa':'https://image.tmdb.org/t/p/w500/kqjL17yufvn9OVLyXYpvtyrFfak.jpg',
+  'rrr':'https://image.tmdb.org/t/p/w500/nEufeZlyAOLqO2brrs0yeF1lgXO.jpg',
+  'bahubali':'https://image.tmdb.org/t/p/w500/nF3tUPUQD2kHhMF96uYbJGTzJaO.jpg',
+  'john wick':'https://image.tmdb.org/t/p/w500/fZPSd91yGE9fCcCe6OoQr6E3Bev.jpg',
+  'avatar':'https://image.tmdb.org/t/p/w500/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg',
+  'deadpool':'https://image.tmdb.org/t/p/w500/en971MEXui9diirXlogOrPKmsEn.jpg',
+  'iron man':'https://image.tmdb.org/t/p/w500/78lPtwv72eTNqFW9COBR0IZDIiI.jpg',
+  'titanic':'https://image.tmdb.org/t/p/w500/9xjZS2rlVxm8SFx8kPC3aIGCOYQ.jpg'
+} %}
+{% for k,v in PM.items() %}{% if k in tl and not hp.url %}{% set hp.url = v %}{% endif %}{% endfor %}
+{% if not hp.url %}{% set hp.url = 'https://picsum.photos/seed/' + (tl|replace(' ',''))[:10] + '/800/500' %}{% endif %}
+
+<div class="movie-detail-hero">
+  <div class="hero-backdrop" style="background-image:url('{{ hp.url }}')"></div>
+  <div class="hero-backdrop-overlay"></div>
+  <div class="container-xl hero-content">
+    <div class="row g-4 align-items-center">
+      <div class="col-auto">
+        <img src="{{ hp.url }}" alt="{{ movie.title }}" class="hero-poster"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="hero-poster-ph" style="display:none;">{{ movie.title[:2].upper() }}</div>
+      </div>
+      <div class="col">
+        <div class="d-flex flex-wrap gap-2 mb-2">
+          {% if movie.genre %}<span class="badge" style="background:rgba(59,130,246,.2);color:#f5426c;border:1px solid rgba(59,130,246,.35);font-size:.68rem;font-weight:700">{{ movie.genre }}</span>{% endif %}
+          {% if movie.language %}<span class="badge" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.75);font-size:.68rem">{{ movie.language }}</span>{% endif %}
+          <span class="badge" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.5);font-size:.68rem">A</span>
+        </div>
+        <h1 style="color:#fff;font-size:2rem;font-weight:800;font-family:'Poppins',sans-serif;text-shadow:0 2px 16px rgba(0,0,0,.55);margin-bottom:.5rem">{{ movie.title }}</h1>
+        <div class="d-flex flex-wrap gap-3 mb-3 small" style="color:rgba(255,255,255,.6)">
+          {% if movie.duration %}<span><i class="bi bi-clock me-1"></i>{{ movie.duration }} min</span>{% endif %}
+          {% if movie.release_date %}<span><i class="bi bi-calendar me-1"></i>{{ movie.release_date.strftime('%d %b %Y') if movie.release_date else '' }}</span>{% endif %}
+          {% if movie.rating %}<span style="color:#f59e0b"><i class="bi bi-star-fill me-1"></i>{{ "%.1f"|format(movie.rating) }}/10</span>{% endif %}
+        </div>
+        {% if movie.description %}
+        <p style="color:rgba(255,255,255,.5);max-width:580px;font-size:.88rem;margin:0;line-height:1.6;">{{ movie.description[:200] }}{% if movie.description|length > 200 %}…{% endif %}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SHOWS SECTION ═══════════════════════════════════════════ -->
+<div class="movie-page-body">
+<div class="container-xl py-4">
+  <div class="row g-4">
+
+    <!-- ── Main col ──────────────────────────────────────────── -->
+    <div class="col-lg-9">
+
+      <!-- Header + City label (no dropdown — city set from homepage) -->
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+        <h5 class="fw-bold mb-0" style="color:var(--txt-primary)">
+          <i class="bi bi-camera-reels me-2" style="color:var(--ch-primary)"></i>Book Tickets
+        </h5>
+        {% if selected_city %}
+        <div style="display:flex;align-items:center;gap:8px;background:rgba(59,130,246,.1);border:1.5px solid rgba(59,130,246,.25);border-radius:12px;padding:8px 16px;color:#60A5FA;font-size:.85rem;font-weight:600;">
+          <span>📍</span>
+          <span>{{ selected_city }}</span>
+          <a href="{{ url_for('user.movie_detail', movie_id=movie.movie_id) }}"
+             onclick="localStorage.removeItem('cinehub_city')"
+             title="Show all cities"
+             style="margin-left:4px;color:rgba(148,163,184,.6);font-size:.75rem;text-decoration:none;"
+             onmouseover="this.style.color='#F87171'" onmouseout="this.style.color='rgba(148,163,184,.6)'">
+            ✕
+          </a>
+        </div>
+        {% else %}
+        <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:8px 16px;color:var(--txt-muted);font-size:.85rem;">
+          <span>🌐</span><span>All Cities</span>
+        </div>
+        {% endif %}
+        <!-- hidden select kept for JS compatibility -->
+        <select id="city-select" style="display:none;" data-movie-id="{{ movie.movie_id }}">
+          <option value="">All Cities</option>
+          {% for c in cities %}<option value="{{ c }}" {{ 'selected' if c == selected_city }}>{{ c }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <!-- DATE STRIP -->
+      <div id="date-strip-wrap" class="mb-4">
+        <div class="small fw-semibold mb-2" style="color:var(--txt-muted);text-transform:uppercase;font-size:.68rem;letter-spacing:.05em;">
+          <i class="bi bi-calendar3 me-1" style="color:var(--ch-primary);"></i>Select Date
+        </div>
+        <div class="date-strip" id="date-strip"></div>
+        <div id="no-date-msg" style="display:none;font-size:.82rem;color:var(--txt-muted);margin-top:6px;">
+          <i class="bi bi-info-circle me-1"></i>No shows on this date.
+        </div>
+      </div>
+
+      <!-- THEATER CARDS -->
+      <div id="theater-section">
+        {% if shows_by_theater %}
+          {% for theater_id, data in shows_by_theater.items() %}
+          <div class="theater-card" data-theater-id="{{ theater_id }}"
+               data-city="{{ data.theater.city or '' }}">
+
+            <div class="theater-header theater-toggle" onclick="toggleTheater(this)" style="cursor:pointer;">
+              <div>
+                <div class="theater-name">{{ data.theater.name }}</div>
+                <div class="theater-loc">
+                  <i class="bi bi-geo-alt-fill me-1" style="color:var(--ch-primary);font-size:.65rem;"></i>{{ data.theater.location or data.theater.city }}
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="show-count">{{ data.shows|length }} show{{ 's' if data.shows|length != 1 }}</span>
+                <span class="toggle-btn" style="font-size:.78rem;font-weight:700;color:var(--ch-primary);white-space:nowrap;padding:4px 12px;border:1px solid var(--ch-primary);border-radius:20px;">
+                  View Shows ▼
+                </span>
+              </div>
+            </div>
+
+            <div class="show-rows" style="display:none;">
+              {% for show in data.shows %}
+                {% set avail = real_available.get(show.show_id, show.available_seats or 0) %}
+                {% set soldout = avail <= 0 %}
+                {% set first_show_id = show.show_id %}
+
+                {# Real show row #}
+                <div class="show-row" data-show-date="{{ show.show_date_obj.strftime('%Y-%m-%d') if show.show_date_obj else '' }}">
+                  <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <div>
+                      {% set hr = show.start_time[:2]|int if show.start_time else -1 %}
+                      {% if hr >= 6 and hr < 12 %}{% set slotlabel='🌅 Morning' %}{% set slotcls='#D97706' %}
+                      {% elif hr >= 12 and hr < 16 %}{% set slotlabel='☀️ Matinee' %}{% set slotcls='#059669' %}
+                      {% elif hr >= 16 and hr < 19 %}{% set slotlabel='🌇 Evening' %}{% set slotcls='#2563EB' %}
+                      {% elif hr >= 19 and hr < 22 %}{% set slotlabel='🌙 Night' %}{% set slotcls='#7C3AED' %}
+                      {% elif hr >= 22 %}{% set slotlabel='🌃 Late Night' %}{% set slotcls='#DB2777' %}
+                      {% else %}{% set slotlabel='' %}{% set slotcls='' %}{% endif %}
+                      {% if slotlabel %}
+                      <div style="font-size:.68rem;font-weight:700;color:{{ slotcls }};margin-bottom:2px;">{{ slotlabel }}</div>
+                      {% endif %}
+                      <div class="show-time-val">{{ show.start_time_display }}</div>
+                      <div class="show-date-val">{{ show.show_date_display }}</div>
+                    </div>
+                    <div class="d-flex flex-column gap-1">
+                      <span class="fmt-badge">2D</span>
+                      {% if soldout %}<span class="avail-none"><i class="bi bi-x-circle-fill me-1"></i>Sold Out</span>
+                      {% elif avail <= 10 %}<span class="avail-few"><i class="bi bi-exclamation-circle-fill me-1"></i>{{ avail }} seats left</span>
+                      {% else %}<span class="avail-ok"><i class="bi bi-check-circle-fill me-1"></i>{{ avail }} seats available</span>{% endif %}
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="text-end">
+                      <div class="show-price">₹{{ show.price_per_ticket }}</div>
+                      <div class="show-price-sub">onwards/ticket</div>
+                    </div>
+                    {% if soldout %}<span class="btn-book-soldout">Sold Out</span>
+                    {% else %}<a href="{{ url_for('user.seat_selection', show_id=show.show_id) }}" class="btn-book"><i class="bi bi-ticket-perforated-fill"></i> Book</a>{% endif %}
+                  </div>
+                </div>
+
+
+
+              {% endfor %}
+            </div><!-- /show-rows -->
+          </div><!-- /theater-card -->
+          {% endfor %}
+
+        {% else %}
+          <div class="text-center py-5">
+            {% if selected_city and city_has_no_shows %}
+              <!-- Smart no-shows message with city switcher -->
+              <div style="max-width:480px;margin:0 auto;">
+                <div style="font-size:3.5rem;margin-bottom:12px;">🏙️</div>
+                <h5 style="color:#F0F4FF;font-family:'Poppins',sans-serif;font-weight:700;margin-bottom:8px;">
+                  Not showing in {{ selected_city }}
+                </h5>
+                <p style="color:rgba(200,220,255,.55);font-size:.88rem;margin-bottom:24px;">
+                  <strong style="color:#F87171;">{{ movie.title }}</strong> has no scheduled shows in <strong style="color:#60A5FA;">{{ selected_city }}</strong> right now.
+                </p>
+
+                {% if cities_with_shows %}
+                  <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:14px;padding:18px 20px;margin-bottom:20px;">
+                    <p style="color:#93C5FD;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;">
+                      ✅ Available in these cities
+                    </p>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
+                      {% for c in cities_with_shows %}
+                        <a href="{{ url_for('user.movie_detail', movie_id=movie.movie_id, city=c) }}"
+                           onclick="localStorage.setItem('cinehub_city','{{ c }}')"
+                           style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;border-radius:20px;font-size:.83rem;font-weight:700;text-decoration:none;transition:transform .15s,box-shadow .15s;box-shadow:0 3px 10px rgba(59,130,246,.35);"
+                           onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 18px rgba(59,130,246,.5)'"
+                           onmouseout="this.style.transform='';this.style.boxShadow='0 3px 10px rgba(59,130,246,.35)'">
+                          📍 {{ c }}
+                        </a>
+                      {% endfor %}
+                    </div>
+                  </div>
+                {% else %}
+                  <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:14px 18px;margin-bottom:20px;">
+                    <p style="color:#FCA5A5;font-size:.84rem;margin:0;">
+                      😔 This movie currently has no shows scheduled in any city yet.
+                    </p>
+                  </div>
+                {% endif %}
+
+                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                  <a href="{{ url_for('user.movie_detail', movie_id=movie.movie_id) }}"
+                     onclick="localStorage.removeItem('cinehub_city')"
+                     style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:rgba(255,255,255,.08);color:#CBD5E1;border:1px solid rgba(255,255,255,.12);border-radius:20px;font-size:.83rem;font-weight:600;text-decoration:none;">
+                    🌐 Show All Cities
+                  </a>
+                  <a href="{{ url_for('user.movies') }}"
+                     style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:rgba(255,255,255,.06);color:#94A3B8;border:1px solid rgba(255,255,255,.08);border-radius:20px;font-size:.83rem;font-weight:600;text-decoration:none;">
+                    🎬 Browse Movies
+                  </a>
+                </div>
+              </div>
+            {% else %}
+              <i class="bi bi-calendar-x" style="font-size:3rem;color:var(--txt-muted)"></i>
+              <p class="mt-3" style="color:var(--txt-muted)">No shows available for this movie{% if selected_city %} in {{ selected_city }}{% endif %}.</p>
+              <a href="{{ url_for('user.movies') }}" class="btn btn-sm mt-2"
+                 style="background:var(--ch-primary);color:#fff;border-radius:8px;padding:8px 20px;font-weight:700;">Browse Movies</a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div><!-- /theater-section -->
+
+      <div id="no-theaters-msg" style="display:none;" class="text-center py-5">
+        <i class="bi bi-building-x" style="font-size:3rem;color:var(--txt-muted)"></i>
+        <p class="mt-3" style="color:var(--txt-muted)">No shows on this date.</p>
+      </div>
+
+    </div><!-- /col-lg-9 -->
+
+    <!-- ── Sidebar ──────────────────────────────────────────── -->
+    <div class="col-lg-3">
+      <div class="bms-card p-3 mb-3" style="position:sticky;top:80px;">
+        <h6 class="fw-bold mb-3" style="color:var(--txt-primary)">Movie Info</h6>
+        {% if movie.genre %}
+        <div class="d-flex justify-content-between small py-2" style="border-bottom:1px solid var(--border-1)">
+          <span style="color:var(--txt-muted)">Genre</span>
+          <span style="color:var(--txt-primary);font-weight:600">{{ movie.genre }}</span>
+        </div>{% endif %}
+        {% if movie.language %}
+        <div class="d-flex justify-content-between small py-2" style="border-bottom:1px solid var(--border-1)">
+          <span style="color:var(--txt-muted)">Language</span>
+          <span style="color:var(--txt-primary);font-weight:600">{{ movie.language }}</span>
+        </div>{% endif %}
+        {% if movie.duration %}
+        <div class="d-flex justify-content-between small py-2" style="border-bottom:1px solid var(--border-1)">
+          <span style="color:var(--txt-muted)">Duration</span>
+          <span style="color:var(--txt-primary);font-weight:600">{{ movie.duration }} min</span>
+        </div>{% endif %}
+        {% if movie.release_date %}
+        <div class="d-flex justify-content-between small py-2" style="border-bottom:1px solid var(--border-1)">
+          <span style="color:var(--txt-muted)">Released</span>
+          <span style="color:var(--txt-primary);font-weight:600">{{ movie.release_date.strftime('%d %b %Y') if movie.release_date else '—' }}</span>
+        </div>{% endif %}
+        {% if movie.rating %}
+        <div class="d-flex justify-content-between small py-2">
+          <span style="color:var(--txt-muted)">Rating</span>
+          <span style="color:#f59e0b;font-weight:700">★ {{ "%.1f"|format(movie.rating) }}/10</span>
+        </div>{% endif %}
+      </div>
+
+      {% if reviews %}
+      <div class="bms-card p-3">
+        <h6 class="fw-bold mb-3" style="color:var(--txt-primary)">Reviews</h6>
+        {% for r in reviews %}
+        <div class="pb-3 mb-3 {% if not loop.last %}border-bottom{% endif %}" style="border-color:var(--border-1)!important">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <div class="bms-avatar" style="width:28px;height:28px;font-size:.7rem">{{ r.user.name[0].upper() if r.user else '?' }}</div>
+            <span class="small fw-semibold" style="color:var(--txt-primary)">{{ r.user.name if r.user else 'User' }}</span>
+            <span class="ms-auto small fw-bold" style="color:#f59e0b">★ {{ r.rating }}/5</span>
+          </div>
+          {% if r.review_text %}
+          <p class="small mb-0" style="color:var(--txt-muted)">{{ r.review_text[:110] }}{% if r.review_text|length > 110 %}…{% endif %}</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/city_filter.js') }}"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   HELPERS  — global scope so every function can call them
+   ═══════════════════════════════════════════════════════════════════════ */
+function getTodayStr() {
+  var n = new Date();
+  return n.getFullYear() + '-' +
+         String(n.getMonth() + 1).padStart(2, '0') + '-' +
+         String(n.getDate()).padStart(2, '0');
+}
+
+function timeToMins(t) {
+  if (!t) return 9999;
+  t = t.trim();
+  var ampm  = /([ap]m)/i.exec(t);
+  var parts = t.replace(/[apm]/gi, '').trim().split(':');
+  var h = parseInt(parts[0] || 0, 10);
+  var m = parseInt(parts[1] || 0, 10);
+  if (ampm) {
+    var ap = ampm[1].toLowerCase();
+    if (ap === 'pm' && h !== 12) h += 12;
+    if (ap === 'am' && h === 12) h = 0;
+  }
+  return h * 60 + m;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THEATER ACCORDION
+   Click theater header → expand/collapse its show rows,
+   then immediately apply the active date + time filter.
+   ═══════════════════════════════════════════════════════════════════════ */
+function toggleTheater(header) {
+  var card    = header.closest('.theater-card');
+  var rowsDiv = card.querySelector('.show-rows');
+  var btn     = header.querySelector('.toggle-btn');
+  var isOpen  = rowsDiv.style.display !== 'none';
+
+  if (isOpen) {
+    rowsDiv.style.display = 'none';
+    if (btn) btn.innerHTML = 'View Shows &#9660;';
+  } else {
+    rowsDiv.style.display = '';
+    if (btn) btn.innerHTML = 'Hide Shows &#9650;';
+    /* Apply current date + time filter to freshly revealed rows */
+    var activePill = document.querySelector('.date-pill.active');
+    if (activePill) applyFiltersToCard(card, activePill.dataset.date);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CORE FILTER
+   applyFiltersToCard(card, dateStr)
+     — shows rows matching dateStr, hides others
+     — for today: also hides past times and dims boarding-soon shows
+   filterAllCards(dateStr)
+     — runs applyFiltersToCard on every OPEN theater card
+   ═══════════════════════════════════════════════════════════════════════ */
+function applyFiltersToCard(card, dateStr) {
+  var todayStr = getTodayStr();
+  var isToday  = (dateStr === todayStr);
+  var nowMins  = new Date().getHours() * 60 + new Date().getMinutes();
+  var hasVisible = false;
+
+  card.querySelectorAll('.show-row[data-show-date]').forEach(function(row) {
+    var rowDate = row.dataset.showDate || '';
+
+    if (rowDate !== dateStr) {
+      row.style.display = 'none';
+      return;
+    }
+
+    /* Correct date — check time for today */
+    if (isToday) {
+      var timeEl   = row.querySelector('.show-time-val');
+      var showMins = timeToMins(timeEl ? timeEl.textContent : '');
+      var minsLeft = showMins - nowMins;
+
+      if (minsLeft < -30) {
+        /* Show started more than 30 minutes ago — hide it */
+        row.style.display = 'none';
+        return;
+      }
+      if (minsLeft >= -30 && minsLeft < 0) {
+        /* Show has started but within 30-min booking window — show but dim */
+        row.style.display       = '';
+        row.style.opacity       = '0.7';
+        row.style.pointerEvents = '';
+        row.style.position      = 'relative';
+        var ob0 = row.querySelector('.bms-badge-board');
+        if (ob0) ob0.remove();
+        if (!row.querySelector('.bms-badge-started')) {
+          var bs = document.createElement('span');
+          bs.className = 'bms-badge-started';
+          bs.style.cssText =
+            'position:absolute;top:10px;right:12px;background:#ef4444;color:#fff;' +
+            'font-size:.58rem;font-weight:800;padding:2px 10px;border-radius:20px;z-index:5;';
+          bs.textContent = 'BOOKING CLOSING';
+          row.appendChild(bs);
+        }
+      } else if (minsLeft >= 0 && minsLeft < 30) {
+        row.style.display       = '';
+        row.style.opacity       = '0.55';
+        row.style.pointerEvents = 'none';
+        row.style.position      = 'relative';
+        if (!row.querySelector('.bms-badge-board')) {
+          var b = document.createElement('span');
+          b.className = 'bms-badge-board';
+          b.style.cssText =
+            'position:absolute;top:10px;right:12px;background:#f59e0b;color:#000;' +
+            'font-size:.58rem;font-weight:800;padding:2px 10px;border-radius:20px;z-index:5;';
+          b.textContent = 'BOARDING SOON';
+          row.appendChild(b);
+        }
+      } else {
+        row.style.display       = '';
+        row.style.opacity       = '1';
+        row.style.pointerEvents = '';
+        var ob = row.querySelector('.bms-badge-board');
+        if (ob) ob.remove();
+      }
+    } else {
+      /* Future / past calendar date — show all rows for this date */
+      row.style.display       = '';
+      row.style.opacity       = '1';
+      row.style.pointerEvents = '';
+      var ob2 = row.querySelector('.bms-badge-board');
+      if (ob2) ob2.remove();
+    }
+
+    hasVisible = true;
+  });
+
+  /* "No more shows today" nudge inside this card */
+  var wrap      = card.querySelector('.show-rows');
+  var existMsg  = wrap && wrap.querySelector('.bms-no-more-msg');
+  if (!hasVisible && isToday && wrap && wrap.style.display !== 'none') {
+    if (!existMsg) {
+      var msg = document.createElement('div');
+      msg.className = 'bms-no-more-msg';
+      msg.style.cssText =
+        'padding:18px;text-align:center;color:rgba(255,255,255,.4);font-size:.82rem;';
+      msg.innerHTML =
+        '🎬 No more shows today here. ' +
+        '<a href="#date-strip-wrap" style="color:#f5426c;font-weight:700;text-decoration:none;">' +
+        'Try another date ↑</a>';
+      wrap.appendChild(msg);
+    }
+  } else if (existMsg) {
+    existMsg.remove();
+  }
+}
+
+function filterAllCards(dateStr) {
+  document.querySelectorAll('.theater-card').forEach(function(card) {
+    var rowsDiv = card.querySelector('.show-rows');
+    /* Only filter open (expanded) cards */
+    if (rowsDiv && rowsDiv.style.display !== 'none') {
+      applyFiltersToCard(card, dateStr);
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DOM READY
+   ═══════════════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function () {
+  var strip    = document.getElementById('date-strip');
+  var DAYS     = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var MONS     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var todayStr = getTodayStr();
+
+  /* ── Build 7 date pills from today ── */
+  for (var i = 0; i < 7; i++) {
+    var d   = new Date(); d.setDate(d.getDate() + i); d.setHours(0,0,0,0);
+    var iso = d.getFullYear() + '-' +
+              String(d.getMonth()+1).padStart(2,'0') + '-' +
+              String(d.getDate()).padStart(2,'0');
+    var dayLbl = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : DAYS[d.getDay()];
+
+    var pill = document.createElement('div');
+    pill.className    = 'date-pill' + (i === 0 ? ' today' : '');
+    pill.dataset.date = iso;
+    pill.innerHTML =
+      '<span class="dp-day">' + dayLbl + '</span>' +
+      '<span class="dp-num">' + d.getDate() + '</span>' +
+      '<span class="dp-mon">' + MONS[d.getMonth()] + '</span>';
+
+    pill.addEventListener('click', (function(p, dateIso) {
+      return function() {
+        document.querySelectorAll('.date-pill').forEach(function(x) {
+          x.classList.remove('active');
+        });
+        p.classList.add('active');
+        filterAllCards(dateIso);   /* re-filter all open theaters */
+      };
+    })(pill, iso));
+
+    strip.appendChild(pill);
+  }
+
+  /* Auto-activate today pill */
+  var todayPill = strip.querySelector('.date-pill');
+  if (todayPill) todayPill.classList.add('active');
+
+  /* Re-check every 60 s so shows vanish live as time passes */
+  setInterval(function() {
+    var ap = document.querySelector('.date-pill.active');
+    if (ap) filterAllCards(ap.dataset.date);
+  }, 60000);
+
+  /* ── City picker ── */
+  var citySelect = document.getElementById('city-select');
+
+  function selectCityMD(city) {
+    var dd  = document.getElementById('city-dropdown');
+    var lbl = document.getElementById('city-btn-label');
+    if (dd)  dd.classList.remove('open');
+    if (lbl) lbl.textContent = city || 'All Cities';
+    if (city) localStorage.setItem('cinehub_city', city);
+    else      localStorage.removeItem('cinehub_city');
+    var url = new URL(window.location.href);
+    if (city) url.searchParams.set('city', city);
+    else      url.searchParams.delete('city');
+    window.location.href = url.toString();
+  }
+
+  /* Close dropdown on outside click */
+  document.addEventListener('click', function(e) {
+    var btn = document.getElementById('city-btn');
+    var dd  = document.getElementById('city-dropdown');
+    if (dd && !dd.contains(e.target) && btn && !btn.contains(e.target)) {
+      dd.classList.remove('open');
+    }
+  });
+
+  /* Dropdown open/close observer */
+  (function() {
+    var dd = document.getElementById('city-dropdown');
+    if (!dd) return;
+    var obs = new MutationObserver(function() {
+      dd.style.display = dd.classList.contains('open') ? 'block' : 'none';
+    });
+    obs.observe(dd, { attributes: true, attributeFilter: ['class'] });
+  })();
+
+  /* Sync city label from server-side value */
+  if (citySelect) {
+    var serverCity = citySelect.value;
+    if (serverCity) {
+      var lbl = document.getElementById('city-btn-label');
+      if (lbl) lbl.textContent = serverCity;
+    } else {
+      /* Auto-restore saved city if URL has none */
+      var saved = localStorage.getItem('cinehub_city') || '';
+      if (saved) {
+        for (var si = 0; si < citySelect.options.length; si++) {
+          if (citySelect.options[si].value === saved) {
+            var url2 = new URL(window.location.href);
+            if (!url2.searchParams.get('city')) {
+              url2.searchParams.set('city', saved);
+              window.location.replace(url2.toString());
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  /* Legacy select-based city filter (fallback) */
+  var cityFilterOld = document.getElementById('city-filter');
+  if (cityFilterOld) {
+    cityFilterOld.addEventListener('change', function() {
+      var val = this.value.toLowerCase();
+      document.querySelectorAll('.theater-card').forEach(function(card) {
+        var city = (card.dataset.city || '').toLowerCase();
+        card.style.display = (!val || city === val) ? '' : 'none';
+      });
+    });
+  }
+
+  /* Make selectCityMD available to inline onclick in template */
+  window.selectCityMD = selectCityMD;
+});
+</script>
+{% endblock %}
