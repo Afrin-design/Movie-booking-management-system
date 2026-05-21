@@ -63,7 +63,7 @@ def _safe_strftime(value, fmt):
 def create_app(env=None):
     app = Flask(__name__)
 
-    env = env or os.environ.get("FLASK_ENV", "development")
+    env = env or os.environ.get("FLASK_ENV", "production")
     cfg = config_map.get(env, config_map["default"])
     app.config.from_object(cfg)
 
