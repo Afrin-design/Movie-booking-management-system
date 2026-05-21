@@ -120,10 +120,14 @@ def create_app(env=None):
 
             for _col_name, _col_type in _new_cols:
                 if _col_name not in _existing_cols:
-                    db.session.execute(
-                        db.text(f"ALTER TABLE bookings ADD COLUMN {_col_name} {_col_type}")
-                    )
-                    db.session.commit()
+                    try:
+                        db.session.execute(
+                            db.text(f"ALTER TABLE bookings ADD COLUMN IF NOT EXISTS {_col_name} {_col_type}")
+                        )
+                        db.session.commit()
+                    except Exception as _col_err:
+                        db.session.rollback()
+                        logger.warning("Column migration warning [%s]: %s", _col_name, _col_err)
 
         except Exception as _mig_err:
             db.session.rollback()
@@ -151,18 +155,16 @@ def create_app(env=None):
 
         # ── Create seat_locks table ────────────────────────────────────────────
         try:
-            _is_pg_sl = db.engine.dialect.name == "postgresql"
-            _ts_type  = "TIMESTAMP" if _is_pg_sl else "DATETIME"
             db.session.execute(
-                db.text(f"""
+                db.text("""
                     CREATE TABLE IF NOT EXISTS seat_locks (
                         lock_id VARCHAR(40) PRIMARY KEY,
                         show_id VARCHAR(20) NOT NULL REFERENCES shows(show_id) ON DELETE CASCADE,
                         seat_label VARCHAR(20) NOT NULL,
                         user_id VARCHAR(20) REFERENCES users(user_id) ON DELETE CASCADE,
                         session_id VARCHAR(120) NOT NULL,
-                        locked_at {_ts_type} NOT NULL,
-                        expires_at {_ts_type} NOT NULL,
+                        locked_at TIMESTAMP NOT NULL,
+                        expires_at TIMESTAMP NOT NULL,
                         UNIQUE(show_id, seat_label)
                     )
                 """)
