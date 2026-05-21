@@ -51,7 +51,9 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SECURE   = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
-    MAIL_SUPPRESS_SEND      = False  # Emails must go out in production
+    MAIL_SUPPRESS_SEND      = False
+    MAIL_PASSWORD           = os.environ.get("SENDGRID_API_KEY")
+    MAIL_DEFAULT_SENDER     = os.environ.get("MAIL_DEFAULT_SENDER", "chintarapalliafrin@gmail.com")
 
 
 class TestingConfig(Config):
