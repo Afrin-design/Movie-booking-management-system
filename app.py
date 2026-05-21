@@ -133,7 +133,7 @@ def create_app(env=None):
         try:
             db.session.execute(
                 db.text(
-                    "ALTER TABLE theaters ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'Active'"
+                    "ALTER TABLE theaters ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'Active'"
                 )
             )
             db.session.commit()
@@ -143,7 +143,7 @@ def create_app(env=None):
         # ── Add seat_labels column ─────────────────────────────────────────────
         try:
             db.session.execute(
-                db.text("ALTER TABLE bookings ADD COLUMN seat_labels TEXT")
+                db.text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS seat_labels TEXT")
             )
             db.session.commit()
         except Exception:
