@@ -63,7 +63,7 @@ def _safe_strftime(value, fmt):
 def create_app(env=None):
     app = Flask(__name__)
 
-    env = env or os.environ.get("FLASK_ENV", "development")
+    env = env or os.environ.get("FLASK_ENV", "production")
     cfg = config_map.get(env, config_map["default"])
     app.config.from_object(cfg)
 
@@ -151,16 +151,18 @@ def create_app(env=None):
 
         # ── Create seat_locks table ────────────────────────────────────────────
         try:
+            _is_pg_sl = db.engine.dialect.name == "postgresql"
+            _ts_type  = "TIMESTAMP" if _is_pg_sl else "DATETIME"
             db.session.execute(
-                db.text("""
+                db.text(f"""
                     CREATE TABLE IF NOT EXISTS seat_locks (
                         lock_id VARCHAR(40) PRIMARY KEY,
                         show_id VARCHAR(20) NOT NULL REFERENCES shows(show_id) ON DELETE CASCADE,
                         seat_label VARCHAR(20) NOT NULL,
                         user_id VARCHAR(20) REFERENCES users(user_id) ON DELETE CASCADE,
                         session_id VARCHAR(120) NOT NULL,
-                        locked_at DATETIME NOT NULL,
-                        expires_at DATETIME NOT NULL,
+                        locked_at {_ts_type} NOT NULL,
+                        expires_at {_ts_type} NOT NULL,
                         UNIQUE(show_id, seat_label)
                     )
                 """)
