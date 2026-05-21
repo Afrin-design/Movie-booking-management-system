@@ -14,6 +14,8 @@ class Config:
     SQLALCHEMY_ECHO = False
 
     # ── Flask-Mail via SendGrid SMTP ────────────────────────────────────────────
+    # SendGrid requires MAIL_USERNAME = "apikey" (the literal string "apikey")
+    # and MAIL_PASSWORD = your actual SendGrid API key.
     MAIL_SERVER          = "smtp.sendgrid.net"
     MAIL_PORT            = 587
     MAIL_USE_TLS         = True
@@ -51,12 +53,6 @@ class ProductionConfig(Config):
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     MAIL_SUPPRESS_SEND      = False
-<<<<<<< HEAD
-    # MAIL_PASSWORD and MAIL_DEFAULT_SENDER are inherited from Config (read from env)
-=======
-    MAIL_PASSWORD           = os.environ.get("SENDGRID_API_KEY")
-    MAIL_DEFAULT_SENDER     = os.environ.get("MAIL_DEFAULT_SENDER", "chintarapalliafrin@gmail.com")
->>>>>>> 4a2e662a34c39356771d8b7a52094f58559a0f2d
 
 
 class TestingConfig(Config):
