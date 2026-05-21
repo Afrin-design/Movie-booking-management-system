@@ -1197,40 +1197,34 @@ def payment(booking_id):
 
         # ── Send Confirmation Email ──────────────────────────────────────────
         try:
+            from mail_utils import send_booking_confirmation
 
-            from flask_mail import Message as MailMessage
-            from app import mail as _mail
-
-            _mail.send(
-                MailMessage(
-                    subject=f"Booking Confirmed — {show.movie.title}",
-                    recipients=[current_user.email],
-
-                    body=(
-                        f"Hi {current_user.name},\n\n"
-
-                        f"Your booking {booking_id} is confirmed!\n"
-
-                        f"Movie:   {show.movie.title}\n"
-                        f"Date:    {show.show_date}\n"
-                        f"Time:    {show.start_time}\n"
-                        f"Theater: {show.theater.name}, {show.theater.city}\n"
-
-                        f"Seats:   "
-                        f"{booking.seat_labels or ', '.join(s.seat_number for s in seats)}\n\n"
-
-                        f"Base Total: ₹{base_total:.2f}\n"
-                        f"Surcharge: ₹{surcharge:.2f}\n"
-                        f"Convenience Fee: ₹{convenience_fee:.2f}\n"
-                        f"GST: ₹{gst:.2f}\n"
-
-                        f"Total Paid: ₹{total_amount:.2f}\n"
+            send_booking_confirmation(
+                user_name=current_user.name,
+                user_email=current_user.email,
+                booking={
+                    "booking_id":      booking_id,
+                    "movie_title":     show.movie.title,
+                    "show_date":       show.show_date,
+                    "start_time":      show.start_time,
+                    "theater_name":    show.theater.name,
+                    "theater_city":    show.theater.city,
+                    "seats":           (
+                        booking.seat_labels
+                        or ", ".join(s.seat_number for s in seats)
                     ),
-                )
+                    "base_total":      base_total,
+                    "surcharge":       surcharge,
+                    "convenience_fee": convenience_fee,
+                    "gst":             gst,
+                    "total_amount":    total_amount,
+                },
             )
-
-        except Exception:
-            pass
+        except Exception as _mail_exc:
+            import logging as _log
+            _log.getLogger(__name__).error(
+                "[BOOKING EMAIL] Failed for booking %s: %s", booking_id, _mail_exc
+            )
 
         # ── Redirect to confirmation page ───────────────────────────────────
         return redirect(
@@ -1417,22 +1411,22 @@ def cancel_booking(booking_id):
     db.session.commit()
 
     try:
-        from routes.auth import _send_mail
-        _send_mail(
-            to_email=current_user.email,
-            subject="Booking Cancellation — CineHub",
-            body=(
-                f"Hi {current_user.name},\n\n"
-                f"Your booking #{booking.booking_id} for "
-                f"'{show.movie.title if show and show.movie else ''}' has been cancelled.\n"
-                f"Refund Amount: ₹{refund_amt:.2f} "
-                f"(convenience fee ₹{conv_fee:.0f} is non-refundable).\n"
-                "Refund will be processed within 5–7 days after admin approval.\n\n"
-                "— CineHub Support"
-            )
+        from mail_utils import send_cancellation_email
+
+        send_cancellation_email(
+            user_name=current_user.name,
+            user_email=current_user.email,
+            booking_id=booking.booking_id,
+            movie_title=(show.movie.title if show and show.movie else ""),
+            refund_amount=refund_amt,
+            convenience_fee=conv_fee,
         )
-    except Exception:
-        pass
+    except Exception as _mail_exc:
+        import logging as _log
+        _log.getLogger(__name__).error(
+            "[CANCEL EMAIL] Failed for booking %s: %s",
+            booking.booking_id, _mail_exc
+        )
 
     flash(f"Booking cancelled. Refund of ₹{refund_amt:.2f} is pending admin approval.", "success")
     return redirect(url_for("user.my_bookings"))
@@ -1498,22 +1492,22 @@ def cancel_booking_api(booking_id):
 
     # ── Fire cancellation email (best-effort) ─────────────────────────────────
     try:
-        from routes.auth import _send_mail
-        _send_mail(
-            to_email=current_user.email,
-            subject="Booking Cancellation — CineHub",
-            body=(
-                f"Hi {current_user.name},\n\n"
-                f"Your booking #{booking.booking_id} for "
-                f"'{show.movie.title if show and show.movie else ''}' has been cancelled.\n"
-                f"Refund Amount: ₹{refund_amt:.2f} "
-                f"(convenience fee ₹{conv_fee:.0f} is non-refundable).\n"
-                "Refund will be processed within 5–7 days after admin approval.\n\n"
-                "— CineHub Support"
-            )
+        from mail_utils import send_cancellation_email
+
+        send_cancellation_email(
+            user_name=current_user.name,
+            user_email=current_user.email,
+            booking_id=booking.booking_id,
+            movie_title=(show.movie.title if show and show.movie else ""),
+            refund_amount=refund_amt,
+            convenience_fee=conv_fee,
         )
-    except Exception:
-        pass
+    except Exception as _mail_exc:
+        import logging as _log
+        _log.getLogger(__name__).error(
+            "[CANCEL EMAIL] Failed for booking %s: %s",
+            booking.booking_id, _mail_exc
+        )
 
     return _json({
         "ok":           True,

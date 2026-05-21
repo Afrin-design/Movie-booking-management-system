@@ -1,11 +1,19 @@
-import re, secrets, string, random
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
-from flask_login import login_user, logout_user, login_required, current_user
+import logging
+import random
+import re
+import string
+
+from flask import (Blueprint, current_app, flash, redirect, render_template,
+                   request, url_for)
+from flask_login import (current_user, login_required, login_user,
+                         logout_user)
 from werkzeug.security import generate_password_hash
+
 from database.db import db
 from models.user_model import User
 
 auth_bp = Blueprint("auth", __name__)
+logger = logging.getLogger(__name__)
 
 
 def _next_user_id():
@@ -18,19 +26,13 @@ def _next_user_id():
     return f"US_{max_n + 1}"
 
 
-def _send_mail(to_email, subject, body):
-    """Safe mail sender — falls back gracefully, never crashes."""
-    try:
-        from app import mail
-        from flask_mail import Message
-        if not current_app.config.get("MAIL_USERNAME"):
-            raise RuntimeError("MAIL_USERNAME not configured")
-        msg = Message(subject=subject, recipients=[to_email], body=body)
-        mail.send(msg)
-        return True
-    except Exception as exc:
-        print(f"[MAIL ERROR] {type(exc).__name__}: {exc}")
-        return False
+def _send_mail(to_email: str, subject: str, body: str) -> bool:
+    """
+    Backward-compatible mail helper.
+    Delegates to mail_utils.send_mail so all sending logic is centralised.
+    """
+    from mail_utils import send_mail
+    return send_mail(to_email=to_email, subject=subject, body=body)
 
 
 # ── Login ──────────────────────────────────────────────────────────────────────
@@ -49,9 +51,12 @@ def login():
         if user and user.check_password(password):
             login_user(user, remember=True)
 
-            # Force password change on first login (theater owners)
             if user.must_change_password:
-                flash("You are using a temporary password. Please set a new permanent password.", "warning")
+                flash(
+                    "You are using a temporary password. "
+                    "Please set a new permanent password.",
+                    "warning",
+                )
                 return redirect(url_for("auth.change_password"))
 
             flash(f"Welcome back, {user.name}! 🎬", "success")
@@ -121,7 +126,7 @@ def logout():
     return redirect(url_for("user.home"))
 
 
-# ── Change Password (first-login + dashboard) ──────────────────────────────────
+# ── Change Password ────────────────────────────────────────────────────────────
 @auth_bp.route("/change-password", methods=["GET", "POST"])
 @login_required
 def change_password():
@@ -129,10 +134,9 @@ def change_password():
     mode = "first_login" if user.must_change_password else "dashboard"
 
     if request.method == "POST":
-        new_pw  = request.form.get("new_password", "")
+        new_pw  = request.form.get("new_password",     "")
         confirm = request.form.get("confirm_password", "")
 
-        # Only verify current password in dashboard mode
         if mode == "dashboard":
             current_pw = request.form.get("current_password", "")
             if not user.check_password(current_pw):
@@ -165,7 +169,6 @@ def forgot_password():
         user  = User.query.filter_by(email=email).first()
 
         if user:
-            # Generate 8-char temp password
             chars    = string.ascii_letters + string.digits + "!@#$"
             temp_pwd = "".join(random.choice(chars) for _ in range(8))
 
@@ -173,24 +176,24 @@ def forgot_password():
             user.must_change_password = True
             db.session.commit()
 
-            sent = _send_mail(
-                to_email = email,
-                subject  = "Your Temporary Password — CineHub",
-                body     = (
-                    f"Hello {user.name},\n\n"
-                    f"A password reset was requested for your CineHub account.\n\n"
-                    f"Your temporary password is: {temp_pwd}\n\n"
-                    f"Please log in and set a new permanent password immediately.\n\n"
-                    f"Login: http://yourdomain.com/auth/login\n\n"
-                    f"If you did not request this, please ignore this email.\n\n"
-                    f"Regards,\nCineHub Team"
-                )
+            from mail_utils import send_temp_password_email
+
+            sent = send_temp_password_email(
+                user_name=user.name,
+                user_email=email,
+                temp_password=temp_pwd,
+                login_url=url_for("auth.login", _external=True),
             )
 
             if sent:
                 flash("A temporary password has been sent to your email.", "success")
             else:
-                flash(f"Dev mode — your temp password is: {temp_pwd}", "info")
+                logger.warning("[FORGOT-PW] Email failed for %s", email)
+                flash(
+                    "Could not send email right now. "
+                    "Please try again or contact support.",
+                    "danger",
+                )
 
             return redirect(url_for("auth.login"))
         else:
