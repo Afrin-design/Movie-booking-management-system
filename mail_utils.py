@@ -1,28 +1,13 @@
 """
-mail_utils.py — CineHub centralised email helper (SendGrid SMTP via Flask-Mail)
+mail_utils.py — CineHub email helper using SendGrid HTTP API
+(Replaces Flask-Mail/SMTP which is blocked on Render free tier)
 """
 
 import logging
+import os
 from typing import Optional
 
-from flask import current_app
-from flask_mail import Mail, Message
-
 logger = logging.getLogger(__name__)
-
-
-def _get_mail() -> Mail:
-    """
-    Fetch the Flask-Mail instance from the current app extensions.
-    This avoids ANY circular import with app.py.
-    """
-    mail = current_app.extensions.get("mail")
-    if mail is None:
-        raise RuntimeError(
-            "Flask-Mail is not initialised. "
-            "Make sure mail.init_app(app) is called in create_app()."
-        )
-    return mail
 
 
 def send_mail(
@@ -32,37 +17,41 @@ def send_mail(
     html: Optional[str] = None,
 ) -> bool:
     """
-    Send an email via Flask-Mail / SendGrid SMTP.
+    Send an email via SendGrid HTTP API.
     Returns True on success, False on any failure (never raises).
     """
     try:
-        mail = _get_mail()
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail
 
-        password = current_app.config.get("MAIL_PASSWORD")
-        sender   = current_app.config.get("MAIL_DEFAULT_SENDER")
+        api_key = os.environ.get("SENDGRID_API_KEY")
+        sender  = os.environ.get("MAIL_DEFAULT_SENDER")
 
-        if not password:
-            logger.error(
-                "[MAIL] SENDGRID_API_KEY is not set — "
-                "email to '%s' will NOT be sent.", to_email
-            )
+        if not api_key:
+            logger.error("[MAIL] SENDGRID_API_KEY is not set — email will NOT be sent.")
             return False
 
         if not sender:
-            logger.error("[MAIL] MAIL_DEFAULT_SENDER is not configured.")
+            logger.error("[MAIL] MAIL_DEFAULT_SENDER is not set — email will NOT be sent.")
             return False
 
-        msg = Message(
-            subject    = subject,
-            recipients = [to_email],
-            body       = body,
-            html       = html,
-            sender     = sender,
+        message = Mail(
+            from_email=sender,
+            to_emails=to_email,
+            subject=subject,
+            plain_text_content=body,
+            html_content=html or body,
         )
 
-        mail.send(msg)
-        logger.info("[MAIL] ✓ Sent '%s' → %s", subject, to_email)
-        return True
+        sg = SendGridAPIClient(api_key)
+        response = sg.send(message)
+
+        if response.status_code in (200, 201, 202):
+            logger.info("[MAIL] ✓ Sent '%s' → %s (status %s)", subject, to_email, response.status_code)
+            return True
+        else:
+            logger.error("[MAIL] ✗ SendGrid returned status %s for '%s' → %s", response.status_code, subject, to_email)
+            return False
 
     except Exception as exc:
         logger.error(
