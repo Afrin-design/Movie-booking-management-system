@@ -165,42 +165,49 @@ def change_password():
 @auth_bp.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
     if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        user  = User.query.filter_by(email=email).first()
+        try:
+            email = request.form.get("email", "").strip().lower()
+            user  = User.query.filter_by(email=email).first()
 
-        if user:
-            chars    = string.ascii_letters + string.digits + "!@#$"
-            temp_pwd = "".join(random.choice(chars) for _ in range(8))
+            if user:
+                chars    = string.ascii_letters + string.digits + "!@#$"
+                temp_pwd = "".join(random.choice(chars) for _ in range(8))
 
-            user.password_hash        = generate_password_hash(temp_pwd)
-            user.must_change_password = True
-            db.session.commit()
+                from mail_utils import send_temp_password_email
 
-            from mail_utils import send_temp_password_email
+                sent = send_temp_password_email(
+                    user_name=user.name,
+                    user_email=email,
+                    temp_password=temp_pwd,
+                    login_url=url_for("auth.login", _external=True),
+                )
 
-            sent = send_temp_password_email(
-                user_name=user.name,
-                user_email=email,
-                temp_password=temp_pwd,
-                login_url=url_for("auth.login", _external=True),
-            )
-
-            if sent:
-                flash("A temporary password has been sent to your email.", "success")
+                if sent:
+                    user.password_hash        = generate_password_hash(temp_pwd)
+                    user.must_change_password = True
+                    db.session.commit()
+                    flash("A temporary password has been sent to your email.", "success")
+                else:
+                    logger.warning("[FORGOT-PW] Email failed for %s", email)
+                    flash(
+                        "Could not send email right now. "
+                        "Please check your email address or contact support.",
+                        "danger",
+                    )
             else:
-                logger.warning("[FORGOT-PW] Email failed for %s", email)
                 flash(
-                    "Could not send email right now. "
-                    "Please try again or contact support.",
-                    "danger",
+                    "If that email is registered, a temporary password will be sent.",
+                    "info",
                 )
 
             return redirect(url_for("auth.login"))
-        else:
-            flash("Email not found. Please check and try again.", "danger")
+
+        except Exception as exc:
+            logger.error("[FORGOT-PW] Unexpected error: %s", exc, exc_info=True)
+            db.session.rollback()
+            flash("An unexpected error occurred. Please try again.", "danger")
 
     return render_template("auth/forgot_password.html")
-
 
 # ── Helper ─────────────────────────────────────────────────────────────────────
 def _redirect_by_role(role):
