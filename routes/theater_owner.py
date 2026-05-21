@@ -159,10 +159,12 @@ def dashboard():
         db.session.rollback()
         owner_revenue = -1   # signals template to show "—"
 
-    # Only latest 10 upcoming shows (fast — uses index)
+    # Only latest 10 upcoming shows (fast — uses index, eagerly load movie to avoid lazy load crash)
+    from sqlalchemy.orm import joinedload
     upcoming_shows = (
-        Show.query.filter(Show.theater_id.in_(theater_sq),
-                          Show.show_date >= now.date())
+        Show.query.options(joinedload(Show.movie))
+            .filter(Show.theater_id.in_(theater_sq),
+                    Show.show_date >= now.date())
             .order_by(Show.show_date, Show.start_time).limit(10).all()
     )
 
@@ -750,4 +752,3 @@ def owner_refunds():
                            bookings=bookings, stats=stats,
                            status_filter=status_filter,
                            brand=getattr(current_user, "brand", None))
-
