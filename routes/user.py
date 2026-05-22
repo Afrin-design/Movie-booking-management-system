@@ -138,8 +138,7 @@ def home():
                              Show.available_seats > 0,
                              Show.show_date  >= _today_home)
                      .correlate(Movie).exists())
-    movies_q          = Movie.query.filter(_has_show)
-    movies_with_shows = movies_q.order_by(Movie.rating.desc()).limit(10).all()
+    movies_with_shows = Movie.query.order_by(Movie.rating.desc()).limit(20).all()
     featured          = movies_with_shows
     genres        = [g[0] for g in db.session.query(Movie.genre).distinct().order_by(Movie.genre).all() if g[0]]
 
@@ -269,7 +268,7 @@ def movies():
     page  = request.args.get("page", 1,  type=int)
     PER_PAGE = 24
 
-    # EXISTS subquery — never does a full JOIN scan on 350k+ show rows
+    # Show ALL movies — filter by city only if selected
     from datetime import date as _date
     _today = _date.today()
     if city:
@@ -280,13 +279,9 @@ def movies():
                          Show.show_date >= _today,
                          Theater.city == city)
                  .correlate(Movie).exists())
+        query = Movie.query.filter(_mhas)
     else:
-        _mhas = (db.session.query(Show.show_id)
-                 .filter(Show.movie_id == Movie.movie_id,
-                         Show.available_seats > 0,
-                         Show.show_date >= _today)
-                 .correlate(Movie).exists())
-    query = Movie.query.filter(_mhas)
+        query = Movie.query
     if q:
         query = query.filter(Movie.title.ilike(f"%{q}%"))
     if genre:
