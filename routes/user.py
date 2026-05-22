@@ -382,10 +382,18 @@ def movie_detail(movie_id):
     movie = Movie.query.get_or_404(movie_id)
     city  = request.args.get("city", "")
 
-    # All shows for this movie filtered by city if provided (exclude past shows)
+    # ✅ FIX: Show next 7 days of shows, not just today
     from datetime import datetime as _dt
     _now = _dt.now()
-    shows_q = Show.query.filter(Show.movie_id == movie_id, Show.show_date >= _now.date())
+    _today = _now.date()
+    _future = _today + timedelta(days=7)
+    
+    shows_q = Show.query.filter(
+        Show.movie_id == movie_id, 
+        Show.show_date >= _today,
+        Show.show_date <= _future
+    )
+    
     city_has_no_shows = False
     if city:
         shows = (shows_q.join(Show.theater)
@@ -396,6 +404,7 @@ def movie_detail(movie_id):
             city_has_no_shows = True
     else:
         shows = shows_q.order_by(Show.show_date.asc(), Show.start_time).limit(200).all()
+    
     # Deduplicate: keep only 1 show per (theater, date, time) — handles repeated script runs
     _seen_key = set()
     _deduped  = []

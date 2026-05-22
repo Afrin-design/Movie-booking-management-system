@@ -17,7 +17,7 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
-MAX_THEATERS = 10
+MAX_THEATERS = 200
 DAYS_AHEAD   = 7
 PRICE        = 149.99
 CHUNK_SIZE   = 20
