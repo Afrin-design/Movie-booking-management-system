@@ -202,6 +202,9 @@ def create_app(env=None):
         # Seed admin
         _seed_admin(User)
 
+        # Auto-seed shows if missing
+        _seed_shows_if_needed(db)
+
         # ── Register blueprints ────────────────────────────────────────────────
         from routes.admin import admin_bp
         from routes.admin_analytics import admin_analytics_bp
@@ -311,6 +314,95 @@ def create_app(env=None):
         return {"owner_stats": _empty}
 
     return app
+
+
+def _seed_shows_if_needed(db):
+    """Auto-seed shows on startup if any of the next 7 days are missing shows."""
+    try:
+        from datetime import date, timedelta
+        from sqlalchemy import text
+
+        today    = date.today()
+        end_date = today + timedelta(days=6)
+
+        existing_dates = set(
+            str(r[0]) for r in db.session.execute(
+                text("SELECT DISTINCT show_date FROM shows WHERE show_date >= :today"),
+                {"today": today}
+            ).fetchall()
+        )
+
+        all_dates    = [str(today + timedelta(days=i)) for i in range(7)]
+        missing_dates = [d for d in all_dates if d not in existing_dates]
+
+        if not missing_dates:
+            logger.info("[SHOWS] All 7 days covered — no seeding needed.")
+            return
+
+        logger.info("[SHOWS] Missing shows for %d day(s): %s — seeding now...", len(missing_dates), missing_dates)
+
+        SLOTS = ["10:00", "13:30", "17:00", "23:00"]
+        PRICE = 149.99
+
+        theaters = db.session.execute(text("""
+            SELECT t.theater_id, s.screen_id, COALESCE(s.total_seats, 150)
+            FROM   theaters t
+            JOIN   screens  s ON s.theater_id = t.theater_id
+            WHERE  t.status = 'Active' AND t.city IS NOT NULL
+            ORDER  BY t.theater_id, s.screen_id
+        """)).fetchall()
+
+        theater_screens = list({(t, s, seats) for t, s, seats in theaters})
+        if not theater_screens:
+            logger.warning("[SHOWS] No active theaters found — skipping seed.")
+            return
+
+        all_movies = [r[0] for r in db.session.execute(
+            text("SELECT movie_id FROM movies ORDER BY movie_id")
+        ).fetchall()]
+
+        if not all_movies:
+            logger.warning("[SHOWS] No movies found — skipping seed.")
+            return
+
+        max_n = db.session.execute(
+            text("SELECT MAX(CAST(SUBSTR(show_id, 4) AS INTEGER)) FROM shows WHERE show_id LIKE 'SH_%'")
+        ).scalar() or 0
+        max_n = int(max_n)
+
+        num_screens = len(theater_screens)
+        buf  = []
+        done = 0
+
+        def flush(b):
+            if not b: return 0
+            db.session.execute(text(
+                "INSERT INTO shows(show_id,movie_id,theater_id,screen_id,"
+                "show_date,start_time,price_per_ticket,available_seats) "
+                f"VALUES {','.join(b)} ON CONFLICT(show_id) DO NOTHING"
+            ))
+            db.session.commit()
+            return len(b)
+
+        for show_date in missing_dates:
+            for movie_idx, movie_id in enumerate(all_movies):
+                t_id, s_id, seats = theater_screens[movie_idx % num_screens]
+                for slot in SLOTS:
+                    max_n += 1
+                    buf.append(
+                        f"('SH_{max_n}','{movie_id}','{t_id}',"
+                        f"'{s_id}','{show_date}','{slot}',{PRICE},{seats})"
+                    )
+                    if len(buf) >= 500:
+                        done += flush(buf)
+                        buf = []
+
+        done += flush(buf)
+        logger.info("[SHOWS] ✅ Auto-seeded %d shows for %d missing day(s).", done, len(missing_dates))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error("[SHOWS] Auto-seed error: %s", e)
 
 
 def _log_mail_config(app):
